@@ -7,7 +7,7 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'Public')));
 
 // Map de salas: roomId -> { clients: Set, timer: Timeout }
 const rooms = new Map();
