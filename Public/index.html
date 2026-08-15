@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Ponte Virtual</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+
+<body>
+
+  <main>
+
+    <!-- TELA DE CONEXÃO -->
+    <section id="screen-connect">
+
+      <!-- VISÃO DO PC -->
+      <div id="pc-view" class="connect-box">
+
+        <h1>Ponte Virtual</h1>
+
+        <p>Escaneie o QR Code para conectar</p>
+
+        <div class="qr-frame">
+          <div id="qrcode"></div>
+        </div>
+
+        <div class="qr-timer-bar">
+          <div id="qr-progress" class="qr-progress"></div>
+        </div>
+
+        <p class="guide-text">
+          Aponte a câmera do celular para conectar
+        </p>
+
+        <span id="timer-text" class="timer-label">
+          Expira em: 60s
+        </span>
+
+      </div>
+
+      <!-- VISÃO DO CELULAR -->
+      <div id="mobile-view" class="connect-box hidden">
+
+        <h1>Ponte Virtual</h1>
+
+        <p>Como deseja conectar?</p>
+
+        <button id="btn-open-scanner">
+          Escanear QR Code
+        </button>
+
+        <button id="btn-generate-qr">
+          Gerar QR Code
+        </button>
+
+        <!-- QR GERADO PELO CELULAR -->
+        <div id="mobile-qr-container" class="hidden">
+
+          <div class="qr-frame">
+            <div id="mobile-qrcode"></div>
+          </div>
+
+          <p class="guide-text">
+            Peça para o outro celular escanear este QR Code
+          </p>
+
+        </div>
+
+        <!-- LEITOR DE QR -->
+        <div id="reader-container" class="hidden">
+
+          <div id="reader"></div>
+
+          <button id="btn-close-scanner">
+            Fechar câmera
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- TELA DE CHAT -->
+    <section id="screen-chat" class="hidden">
+
+      <header class="chat-header">
+
+        <strong>Dispositivo conectado</strong>
+
+        <button id="btn-destroy">
+          Desconectar
+        </button>
+
+      </header>
+
+      <div id="chat-feed"></div>
+
+      <!-- MENU DE ANEXOS -->
+      <div id="attach-menu" class="hidden">
+
+        <label>
+          Arquivo
+
+          <input
+            id="attach-file"
+            type="file"
+            hidden
+          >
+        </label>
+
+        <label>
+          Foto
+
+          <input
+            id="attach-photo"
+            type="file"
+            accept="image/*"
+            hidden
+          >
+        </label>
+
+      </div>
+
+      <!-- CAMPO DE MENSAGEM -->
+      <div class="chat-input">
+
+        <button id="btn-toggle-attach">
+          +
+        </button>
+
+        <input
+          id="main-input"
+          type="text"
+          placeholder="Digite uma mensagem..."
+        >
+
+        <button id="btn-send">
+          Enviar
+        </button>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL DE CONFIRMAÇÃO -->
+  <div id="modal-confirm" class="modal hidden">
+
+    <div class="modal-box">
+
+      <p id="modal-text">
+        Deseja baixar este arquivo?
+      </p>
+
+      <button id="btn-modal-accept">
+        Aceitar
+      </button>
+
+      <button id="btn-modal-reject">
+        Recusar
+      </button>
+
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
