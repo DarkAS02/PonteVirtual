@@ -22,7 +22,6 @@ const targetRoom =
 // =========================
 
 let socket = null;
-
 let currentRoomId = null;
 
 let pcQrInterval = null;
@@ -34,13 +33,28 @@ let mobileTimerInterval = null;
 let scanner = null;
 let scanningLocked = false;
 
-let pendingFile = null;
-
 let mediaRecorder = null;
 let recordingStream = null;
 let audioChunks = [];
 
 let toastTimer = null;
+
+
+// fila para vários arquivos recebidos
+const incomingQueue = [];
+
+let currentIncoming = null;
+
+
+// arquivos enviados ficam na memória
+// enquanto a sessão existir
+const sentTransfers =
+  new Map();
+
+
+// cards existentes na tela
+const transferCards =
+  new Map();
 
 
 // =========================
@@ -52,6 +66,7 @@ const screenConnect =
 
 const screenApp =
   document.getElementById('screen-app');
+
 
 const pcView =
   document.getElementById('pc-view');
@@ -118,6 +133,7 @@ const dropZone =
 const selectButton =
   document.querySelector('.select-button');
 
+
 const attachFile =
   document.getElementById('attach-file');
 
@@ -173,10 +189,10 @@ const toast =
 
 
 // =========================
-// ID DA SALA
+// GERAR IDs
 // =========================
 
-function createRoomId() {
+function randomId(prefix = 'id') {
 
   if (
     window.crypto &&
@@ -184,21 +200,32 @@ function createRoomId() {
   ) {
 
     return (
-      'brg-' +
+      `${prefix}-` +
       crypto
         .randomUUID()
         .replaceAll('-', '')
-        .substring(0, 12)
+        .substring(0, 16)
     );
+
   }
 
   return (
-    'brg-' +
+    `${prefix}-` +
     Date.now().toString(36) +
     Math.random()
       .toString(36)
       .substring(2, 9)
   );
+}
+
+
+function createRoomId() {
+  return randomId('brg');
+}
+
+
+function createTransferId() {
+  return randomId('trf');
 }
 
 
@@ -216,7 +243,9 @@ function connectSocket() {
 
     if (targetRoom) {
 
-      showConnectView(joiningView);
+      showConnectView(
+        joiningView
+      );
 
       socket.send(
         JSON.stringify({
@@ -231,20 +260,23 @@ function connectSocket() {
 
     if (isMobile) {
 
-      showConnectView(mobileView);
+      showConnectView(
+        mobileView
+      );
 
     } else {
 
-      showConnectView(pcView);
+      showConnectView(
+        pcView
+      );
 
       startPcQrCycle();
-
     }
 
   };
 
 
-  socket.onmessage = event => {
+  socket.onmessage = (event) => {
 
     let data;
 
@@ -256,11 +288,9 @@ function connectSocket() {
     } catch {
 
       return;
-
     }
 
 
-    // CONECTOU
     if (data.type === 'connected') {
 
       stopQrTimers();
@@ -269,13 +299,14 @@ function connectSocket() {
 
       activateApp();
 
-      showToast('Dispositivo conectado ✓');
+      showToast(
+        'Dispositivo conectado ✓'
+      );
 
       return;
     }
 
 
-    // TEXTO
     if (data.type === 'message') {
 
       addTextMessage(
@@ -287,46 +318,58 @@ function connectSocket() {
     }
 
 
-    // ARQUIVO
     if (data.type === 'file_offer') {
 
-      pendingFile =
-        data;
-
-      modalText.textContent =
-        `${data.name} • ${data.size}`;
-
-      modal.classList.remove('hidden');
+      queueIncomingTransfer(
+        data
+      );
 
       return;
     }
 
 
-    // ERRO
-    if (data.type === 'error') {
+    if (
+      data.type ===
+      'transfer_status'
+    ) {
 
-      showToast(data.message);
+      updateTransferStatus(
+        data.transferId,
+        data.status
+      );
+
+      return;
+    }
+
+
+    if (
+      data.type === 'session_ended' ||
+      data.type === 'peer_disconnected'
+    ) {
+
+      showToast(
+        'Sessão encerrada'
+      );
 
       setTimeout(
         goHome,
-        1300
+        350
       );
 
       return;
     }
 
 
-    // OUTRO DISPOSITIVO DESCONECTOU
-    if (
-      data.type ===
-      'peer_disconnected'
-    ) {
+    if (data.type === 'error') {
 
-      alert(
-        'O outro dispositivo desconectou. A sessão foi encerrada.'
+      showToast(
+        data.message
       );
 
-      goHome();
+      setTimeout(
+        goHome,
+        1200
+      );
     }
 
   };
@@ -345,26 +388,49 @@ function connectSocket() {
 
     stopQrTimers();
 
+    if (
+      !screenApp.classList.contains(
+        'hidden'
+      )
+    ) {
+
+      setTimeout(
+        goHome,
+        250
+      );
+
+    }
+
   };
 
 }
 
 
 // =========================
-// CONTROLE DE TELAS
+// TELAS
 // =========================
 
 function hideConnectViews() {
 
-  pcView.classList.add('hidden');
+  pcView.classList.add(
+    'hidden'
+  );
 
-  mobileView.classList.add('hidden');
+  mobileView.classList.add(
+    'hidden'
+  );
 
-  scannerView.classList.add('hidden');
+  scannerView.classList.add(
+    'hidden'
+  );
 
-  mobileQrView.classList.add('hidden');
+  mobileQrView.classList.add(
+    'hidden'
+  );
 
-  joiningView.classList.add('hidden');
+  joiningView.classList.add(
+    'hidden'
+  );
 
 }
 
@@ -373,7 +439,9 @@ function showConnectView(view) {
 
   hideConnectViews();
 
-  view.classList.remove('hidden');
+  view.classList.remove(
+    'hidden'
+  );
 
 }
 
@@ -392,7 +460,7 @@ function activateApp() {
 
 
 // =========================
-// QR CODE DO PC
+// QR CODE PC
 // =========================
 
 function startPcQrCycle() {
@@ -403,11 +471,6 @@ function startPcQrCycle() {
     pcQrInterval
   );
 
-  /*
-    Troca antes da expiração do servidor.
-    Isso ajuda a reduzir QR escaneado
-    exatamente no momento em que expira.
-  */
 
   pcQrInterval =
     setInterval(
@@ -425,9 +488,7 @@ function generatePcQr() {
     socket.readyState !==
       WebSocket.OPEN
   ) {
-
     return;
-
   }
 
 
@@ -436,7 +497,9 @@ function generatePcQr() {
 
 
   const joinUrl =
-    `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+    `${window.location.origin}` +
+    `${window.location.pathname}` +
+    `?room=${currentRoomId}`;
 
 
   qrcodeContainer.innerHTML =
@@ -447,13 +510,14 @@ function generatePcQr() {
     qrcodeContainer,
     {
       text: joinUrl,
-
       width: 170,
       height: 170,
 
-      colorDark: '#04121a',
+      colorDark:
+        '#04121a',
 
-      colorLight: '#ffffff',
+      colorLight:
+        '#ffffff',
 
       correctLevel:
         QRCode.CorrectLevel.M
@@ -479,7 +543,7 @@ function generatePcQr() {
 
 
 // =========================
-// QR CODE DO CELULAR
+// GERAR QR NO CELULAR
 // =========================
 
 btnGenerateQR.addEventListener(
@@ -497,7 +561,6 @@ btnGenerateQR.addEventListener(
       );
 
       return;
-
     }
 
 
@@ -531,9 +594,7 @@ function generateMobileQr() {
     socket.readyState !==
       WebSocket.OPEN
   ) {
-
     return;
-
   }
 
 
@@ -542,7 +603,9 @@ function generateMobileQr() {
 
 
   const joinUrl =
-    `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+    `${window.location.origin}` +
+    `${window.location.pathname}` +
+    `?room=${currentRoomId}`;
 
 
   mobileQrcode.innerHTML =
@@ -553,13 +616,14 @@ function generateMobileQr() {
     mobileQrcode,
     {
       text: joinUrl,
-
       width: 170,
       height: 170,
 
-      colorDark: '#04121a',
+      colorDark:
+        '#04121a',
 
-      colorLight: '#ffffff',
+      colorLight:
+        '#ffffff',
 
       correctLevel:
         QRCode.CorrectLevel.M
@@ -615,8 +679,7 @@ function startCountdown(
   type
 ) {
 
-  let seconds =
-    50;
+  let seconds = 50;
 
 
   if (type === 'pc') {
@@ -658,10 +721,12 @@ function startCountdown(
 
         progressElement.style.width =
           `${
-            Math.max(
-              seconds,
-              0
-            ) / 50 * 100
+            (
+              Math.max(
+                seconds,
+                0
+              ) / 50
+            ) * 100
           }%`;
 
 
@@ -700,6 +765,7 @@ function startCountdown(
 
 btnOpenScanner.addEventListener(
   'click',
+
   async () => {
 
     showConnectView(
@@ -722,28 +788,27 @@ btnOpenScanner.addEventListener(
       await scanner.start(
 
         {
-          facingMode:
-            'environment'
+          facingMode: {
+            exact: 'environment'
+          }
         },
 
-        {
-          fps: 15,
 
-          /*
-            Área grande para facilitar
-            a leitura sem precisar
-            enquadrar perfeitamente.
-          */
+        {
+          fps: 18,
 
           qrbox:
-            (width, height) => {
+            (
+              width,
+              height
+            ) => {
 
               const size =
                 Math.floor(
                   Math.min(
                     width,
                     height
-                  ) * 0.76
+                  ) * 0.82
                 );
 
 
@@ -751,23 +816,22 @@ btnOpenScanner.addEventListener(
                 width: size,
                 height: size
               };
+
             },
 
           disableFlip:
             false
         },
 
-        async decodedText => {
 
-          /*
-            Evita o leitor disparar
-            várias vezes para o mesmo QR.
-          */
+        async (
+          decodedText
+        ) => {
 
-          if (scanningLocked) {
-
+          if (
+            scanningLocked
+          ) {
             return;
-
           }
 
 
@@ -784,13 +848,8 @@ btnOpenScanner.addEventListener(
           } catch {
 
             return;
-
           }
 
-
-          /*
-            Só aceita QR deste próprio site.
-          */
 
           if (
             url.origin !==
@@ -805,7 +864,6 @@ btnOpenScanner.addEventListener(
             );
 
             return;
-
           }
 
 
@@ -821,19 +879,15 @@ btnOpenScanner.addEventListener(
 
         },
 
+
         () => {}
+
       );
 
 
-      /*
-        Tenta aplicar zoom real na câmera.
-        Alguns celulares suportam,
-        outros simplesmente ignoram.
-      */
-
       setTimeout(
-        tryCameraZoom,
-        700
+        improveRunningCamera,
+        600
       );
 
 
@@ -862,6 +916,7 @@ btnOpenScanner.addEventListener(
 
 btnCloseScanner.addEventListener(
   'click',
+
   async () => {
 
     await stopScanner();
@@ -875,13 +930,110 @@ btnCloseScanner.addEventListener(
 );
 
 
-async function stopScanner() {
+// tenta melhorar a câmera
+// quando o aparelho permitir
 
-  if (!scanner) {
+async function improveRunningCamera() {
 
-    return;
+  if (!scanner) return;
+
+
+  try {
+
+    const capabilities =
+      scanner
+        .getRunningTrackCapabilities();
+
+
+    const constraints = {
+      advanced: []
+    };
+
+
+    if (
+      capabilities.focusMode
+    ) {
+
+      constraints.advanced.push({
+        focusMode:
+          'continuous'
+      });
+
+    }
+
+
+    if (
+      capabilities.zoom
+    ) {
+
+      const min =
+        capabilities.zoom.min ?? 1;
+
+
+      const max =
+        capabilities.zoom.max ?? 1;
+
+
+      const desired =
+        Math.min(
+          max,
+          Math.max(
+            min,
+            1.25
+          )
+        );
+
+
+      constraints.advanced.push({
+        zoom: desired
+      });
+
+    }
+
+
+    if (
+      capabilities.width &&
+      capabilities.height
+    ) {
+
+      constraints.width = {
+        ideal: 1920
+      };
+
+
+      constraints.height = {
+        ideal: 1080
+      };
+
+    }
+
+
+    if (
+      constraints.advanced.length ||
+      constraints.width
+    ) {
+
+      await scanner
+        .applyVideoConstraints(
+          constraints
+        );
+
+    }
+
+  } catch (error) {
+
+    console.log(
+      'Ajustes avançados da câmera não disponíveis.'
+    );
 
   }
+
+}
+
+
+async function stopScanner() {
+
+  if (!scanner) return;
 
 
   try {
@@ -893,101 +1045,12 @@ async function stopScanner() {
 
   try {
 
-    await scanner.clear();
+    scanner.clear();
 
   } catch {}
 
 
-  scanner =
-    null;
-
-}
-
-
-async function tryCameraZoom() {
-
-  try {
-
-    const video =
-      document.querySelector(
-        '#reader video'
-      );
-
-
-    if (
-      !video ||
-      !video.srcObject
-    ) {
-
-      return;
-
-    }
-
-
-    const track =
-      video
-        .srcObject
-        .getVideoTracks()[0];
-
-
-    if (!track) {
-
-      return;
-
-    }
-
-
-    const capabilities =
-      track.getCapabilities
-        ? track.getCapabilities()
-        : {};
-
-
-    if (!capabilities.zoom) {
-
-      return;
-
-    }
-
-
-    const min =
-      capabilities.zoom.min || 1;
-
-    const max =
-      capabilities.zoom.max || 1;
-
-
-    /*
-      Zoom moderado.
-      Não queremos aproximar demais.
-    */
-
-    const desired =
-      Math.min(
-        max,
-        Math.max(
-          min,
-          1.6
-        )
-      );
-
-
-    await track.applyConstraints({
-      advanced: [
-        {
-          zoom: desired
-        }
-      ]
-    });
-
-
-  } catch (error) {
-
-    console.log(
-      'Zoom da câmera não suportado.'
-    );
-
-  }
+  scanner = null;
 
 }
 
@@ -997,25 +1060,31 @@ async function tryCameraZoom() {
 // =========================
 
 tabs.forEach(
-  tab => {
+  (tab) => {
 
     tab.addEventListener(
       'click',
       () => {
 
         tabs.forEach(
-          item =>
+          (item) => {
+
             item.classList.remove(
               'active'
-            )
+            );
+
+          }
         );
 
 
         panels.forEach(
-          panel =>
+          (panel) => {
+
             panel.classList.remove(
               'active'
-            )
+            );
+
+          }
         );
 
 
@@ -1024,15 +1093,13 @@ tabs.forEach(
         );
 
 
-        const target =
-          document.getElementById(
+        document
+          .getElementById(
             `tab-${tab.dataset.tab}`
+          )
+          .classList.add(
+            'active'
           );
-
-
-        target.classList.add(
-          'active'
-        );
 
       }
     );
@@ -1053,12 +1120,7 @@ btnSendText.addEventListener(
 
 textInput.addEventListener(
   'keydown',
-  event => {
-
-    /*
-      Enter envia.
-      Shift + Enter quebra linha.
-    */
+  (event) => {
 
     if (
       event.key === 'Enter' &&
@@ -1081,25 +1143,16 @@ function sendText() {
     textInput.value.trim();
 
 
-  if (!content) {
-
-    return;
-
-  }
+  if (!content) return;
 
 
-  if (
-    !socket ||
-    socket.readyState !==
-      WebSocket.OPEN
-  ) {
+  if (!socketReady()) {
 
     showToast(
       'Conexão indisponível'
     );
 
     return;
-
   }
 
 
@@ -1185,13 +1238,16 @@ function addTextMessage(
 
   copy.addEventListener(
     'click',
+
     async () => {
 
       try {
 
-        await navigator.clipboard.writeText(
-          content
-        );
+        await navigator
+          .clipboard
+          .writeText(
+            content
+          );
 
 
         copy.textContent =
@@ -1260,22 +1316,15 @@ function addTextMessage(
 
 
 // =========================
-// ARQUIVOS
+// SELEÇÃO MÚLTIPLA
 // =========================
 
 selectButton.addEventListener(
   'click',
-  event => {
-
-    /*
-      Impede o clique no botão
-      de disparar o label duas vezes.
-    */
+  (event) => {
 
     event.preventDefault();
-
     event.stopPropagation();
-
 
     attachFile.click();
 
@@ -1285,7 +1334,7 @@ selectButton.addEventListener(
 
 attachFile.addEventListener(
   'change',
-  event => {
+  (event) => {
 
     const files =
       Array.from(
@@ -1293,8 +1342,8 @@ attachFile.addEventListener(
       );
 
 
-    files.forEach(
-      sendFile
+    sendFiles(
+      files
     );
 
 
@@ -1307,17 +1356,17 @@ attachFile.addEventListener(
 
 attachPhoto.addEventListener(
   'change',
-  event => {
+  (event) => {
 
-    const file =
-      event.target.files[0];
+    const files =
+      Array.from(
+        event.target.files
+      );
 
 
-    if (file) {
-
-      sendFile(file);
-
-    }
+    sendFiles(
+      files
+    );
 
 
     event.target.value =
@@ -1329,17 +1378,17 @@ attachPhoto.addEventListener(
 
 attachAudio.addEventListener(
   'change',
-  event => {
+  (event) => {
 
-    const file =
-      event.target.files[0];
+    const files =
+      Array.from(
+        event.target.files
+      );
 
 
-    if (file) {
-
-      sendFile(file);
-
-    }
+    sendFiles(
+      files
+    );
 
 
     event.target.value =
@@ -1349,29 +1398,62 @@ attachAudio.addEventListener(
 );
 
 
+function sendFiles(files) {
+
+  if (!files.length) {
+    return;
+  }
+
+
+  files.forEach(
+    sendFile
+  );
+
+
+  if (
+    files.length > 1
+  ) {
+
+    showToast(
+      `${files.length} itens selecionados`,
+      false
+    );
+
+  }
+
+}
+
+
+// =========================
+// ENVIO DE ARQUIVO
+// =========================
+
 function sendFile(file) {
 
-  /*
-    Como o protótipo envia Base64
-    pelo WebSocket, vamos limitar
-    arquivos grandes por enquanto.
-  */
-
+  // temporário para o protótipo
   const maxSize =
     6 * 1024 * 1024;
 
 
   if (
-    file.size >
-    maxSize
+    file.size > maxSize
   ) {
 
     showToast(
-      'Protótipo: limite de 6 MB'
+      `"${file.name}" passou do limite de 6 MB`
     );
 
     return;
+  }
 
+
+  if (!socketReady()) {
+
+    showToast(
+      'Conexão indisponível'
+    );
+
+    return;
   }
 
 
@@ -1382,9 +1464,16 @@ function sendFile(file) {
   reader.onload =
     () => {
 
-      const fileData = {
+      const transferId =
+        createTransferId();
+
+
+      const transfer = {
+
         type:
           'file_offer',
+
+        transferId,
 
         name:
           file.name,
@@ -1393,6 +1482,9 @@ function sendFile(file) {
           formatBytes(
             file.size
           ),
+
+        bytes:
+          file.size,
 
         mime:
           file.type,
@@ -1404,24 +1496,27 @@ function sendFile(file) {
 
         data:
           reader.result
+
       };
+
+
+      sentTransfers.set(
+        transferId,
+        transfer
+      );
 
 
       socket.send(
         JSON.stringify(
-          fileData
+          transfer
         )
       );
 
 
       addFileCard(
-        fileData,
-        'me'
-      );
-
-
-      showToast(
-        'Arquivo enviado ✓'
+        transfer,
+        'me',
+        'pending'
       );
 
     };
@@ -1435,21 +1530,20 @@ function sendFile(file) {
 
 
 // =========================
-// DRAG AND DROP
+// ARRASTAR ARQUIVOS
 // =========================
 
 [
   'dragenter',
   'dragover'
 ].forEach(
-  eventName => {
+  (eventName) => {
 
     dropZone.addEventListener(
       eventName,
-      event => {
+      (event) => {
 
         event.preventDefault();
-
         event.stopPropagation();
 
 
@@ -1468,14 +1562,13 @@ function sendFile(file) {
   'dragleave',
   'drop'
 ].forEach(
-  eventName => {
+  (eventName) => {
 
     dropZone.addEventListener(
       eventName,
-      event => {
+      (event) => {
 
         event.preventDefault();
-
         event.stopPropagation();
 
 
@@ -1492,7 +1585,7 @@ function sendFile(file) {
 
 dropZone.addEventListener(
   'drop',
-  event => {
+  (event) => {
 
     const files =
       Array.from(
@@ -1500,8 +1593,8 @@ dropZone.addEventListener(
       );
 
 
-    files.forEach(
-      sendFile
+    sendFiles(
+      files
     );
 
   }
@@ -1509,22 +1602,65 @@ dropZone.addEventListener(
 
 
 // =========================
-// RECEBIMENTO / DOWNLOAD
+// FILA DE RECEBIMENTO
+// =========================
+
+function queueIncomingTransfer(
+  file
+) {
+
+  incomingQueue.push(
+    file
+  );
+
+
+  showNextIncoming();
+
+}
+
+
+function showNextIncoming() {
+
+  if (
+    currentIncoming ||
+    !incomingQueue.length
+  ) {
+    return;
+  }
+
+
+  currentIncoming =
+    incomingQueue.shift();
+
+
+  modalText.textContent =
+    `${currentIncoming.name} • ${currentIncoming.size}`;
+
+
+  modal.classList.remove(
+    'hidden'
+  );
+
+}
+
+
+// =========================
+// ACEITAR
 // =========================
 
 btnModalAccept.addEventListener(
   'click',
   () => {
 
-    if (!pendingFile) {
-
+    if (
+      !currentIncoming
+    ) {
       return;
-
     }
 
 
     const file =
-      pendingFile;
+      currentIncoming;
 
 
     downloadFile(
@@ -1534,38 +1670,76 @@ btnModalAccept.addEventListener(
 
     addFileCard(
       file,
-      'other'
+      'other',
+      'accepted'
     );
 
 
-    pendingFile =
-      null;
+    sendTransferStatus(
+      file.transferId,
+      'accepted'
+    );
 
 
     modal.classList.add(
       'hidden'
     );
+
+
+    currentIncoming =
+      null;
 
 
     showToast(
       '✓ Download iniciado'
     );
 
+
+    showNextIncoming();
+
   }
 );
 
+
+// =========================
+// RECUSAR
+// =========================
 
 btnModalReject.addEventListener(
   'click',
   () => {
 
-    pendingFile =
-      null;
+    if (
+      !currentIncoming
+    ) {
+      return;
+    }
+
+
+    const file =
+      currentIncoming;
+
+
+    addFileCard(
+      file,
+      'other',
+      'rejected'
+    );
+
+
+    sendTransferStatus(
+      file.transferId,
+      'rejected'
+    );
 
 
     modal.classList.add(
       'hidden'
     );
+
+
+    currentIncoming =
+      null;
 
 
     showToast(
@@ -1573,9 +1747,160 @@ btnModalReject.addEventListener(
       false
     );
 
+
+    showNextIncoming();
+
   }
 );
 
+
+// =========================
+// AVISAR STATUS
+// =========================
+
+function sendTransferStatus(
+  transferId,
+  status
+) {
+
+  if (!socketReady()) {
+    return;
+  }
+
+
+  socket.send(
+    JSON.stringify({
+      type:
+        'transfer_status',
+
+      transferId,
+
+      status
+    })
+  );
+
+}
+
+
+// =========================
+// RECEBER STATUS
+// =========================
+
+function updateTransferStatus(
+  transferId,
+  status
+) {
+
+  const card =
+    transferCards.get(
+      transferId
+    );
+
+
+  if (!card) {
+    return;
+  }
+
+
+  setCardStatus(
+    card,
+    status
+  );
+
+
+  if (
+    status === 'accepted'
+  ) {
+
+    showToast(
+      'Arquivo recebido pelo outro dispositivo ✓'
+    );
+
+  }
+
+
+  if (
+    status === 'rejected'
+  ) {
+
+    showToast(
+      'O outro dispositivo recusou o arquivo',
+      false
+    );
+
+  }
+
+}
+
+
+// =========================
+// REENVIAR
+// =========================
+
+function resendTransfer(
+  transferId
+) {
+
+  const transfer =
+    sentTransfers.get(
+      transferId
+    );
+
+
+  if (!transfer) {
+
+    showToast(
+      'Esse arquivo não está mais disponível para reenvio'
+    );
+
+    return;
+  }
+
+
+  if (!socketReady()) {
+
+    showToast(
+      'Conexão indisponível'
+    );
+
+    return;
+  }
+
+
+  socket.send(
+    JSON.stringify(
+      transfer
+    )
+  );
+
+
+  const card =
+    transferCards.get(
+      transferId
+    );
+
+
+  if (card) {
+
+    setCardStatus(
+      card,
+      'pending'
+    );
+
+  }
+
+
+  showToast(
+    'Arquivo reenviado',
+    false
+  );
+
+}
+
+
+// =========================
+// DOWNLOAD
+// =========================
 
 function downloadFile(file) {
 
@@ -1607,12 +1932,13 @@ function downloadFile(file) {
 
 
 // =========================
-// CARDS DE ARQUIVO
+// CRIAR CARD
 // =========================
 
 function addFileCard(
   file,
-  sender
+  sender,
+  status
 ) {
 
   const category =
@@ -1635,11 +1961,11 @@ function addFileCard(
 
 
   card.className =
-    `file-card ${
-      category === 'audio'
-        ? 'audio-card'
-        : ''
-    }`;
+    'file-card';
+
+
+  card.dataset.transferId =
+    file.transferId;
 
 
   const icon =
@@ -1652,29 +1978,49 @@ function addFileCard(
     'file-card-icon';
 
 
-  icon.textContent =
+  icon.innerHTML =
     iconForCategory(
       category
     );
 
 
-  const info =
+  const main =
     document.createElement(
       'div'
     );
 
 
-  info.className =
-    'file-card-info';
+  main.className =
+    'file-card-main';
+
+
+  const titleRow =
+    document.createElement(
+      'div'
+    );
+
+
+  titleRow.className =
+    'file-card-title-row';
 
 
   const title =
+    document.createElement(
+      'div'
+    );
+
+
+  title.className =
+    'file-card-title';
+
+
+  const strong =
     document.createElement(
       'strong'
     );
 
 
-  title.textContent =
+  strong.textContent =
     file.name;
 
 
@@ -1685,28 +2031,94 @@ function addFileCard(
 
 
   detail.textContent =
-    `${file.size} • ${
-      sender === 'me'
-        ? 'Enviado'
-        : 'Recebido'
-    }`;
+    file.size;
 
 
-  info.append(
-    title,
+  title.append(
+    strong,
     detail
   );
 
 
-  card.append(
-    icon,
-    info
+  const actions =
+    document.createElement(
+      'div'
+    );
+
+
+  actions.className =
+    'file-card-actions';
+
+
+  // LIXEIRA
+
+  const deleteButton =
+    document.createElement(
+      'button'
+    );
+
+
+  deleteButton.className =
+    'icon-button danger';
+
+
+  deleteButton.title =
+    'Remover do histórico';
+
+
+  deleteButton.innerHTML =
+    trashIcon();
+
+
+  deleteButton.addEventListener(
+    'click',
+    () => {
+
+      card.remove();
+
+
+      transferCards.delete(
+        file.transferId
+      );
+
+
+      if (
+        sender === 'me'
+      ) {
+
+        sentTransfers.delete(
+          file.transferId
+        );
+
+      }
+
+
+      showToast(
+        'Removido do histórico',
+        false
+      );
+
+    }
   );
 
 
-  /*
-    Preview de imagem
-  */
+  actions.appendChild(
+    deleteButton
+  );
+
+
+  titleRow.append(
+    title,
+    actions
+  );
+
+
+  main.appendChild(
+    titleRow
+  );
+
+
+  // PREVIEW DE IMAGEM
 
   if (
     category === 'image' &&
@@ -1731,16 +2143,14 @@ function addFileCard(
       'file-preview';
 
 
-    info.appendChild(
+    main.appendChild(
       preview
     );
 
   }
 
 
-  /*
-    Player de áudio
-  */
+  // PLAYER DE ÁUDIO
 
   if (
     category === 'audio' &&
@@ -1761,16 +2171,176 @@ function addFileCard(
       file.data;
 
 
-    info.appendChild(
+    main.appendChild(
       audio
     );
 
   }
 
 
+  // STATUS
+
+  const statusRow =
+    document.createElement(
+      'div'
+    );
+
+
+  statusRow.className =
+    'transfer-status-row';
+
+
+  const statusText =
+    document.createElement(
+      'span'
+    );
+
+
+  statusText.className =
+    'transfer-status';
+
+
+  // BOTÃO REENVIAR
+
+  const retryButton =
+    document.createElement(
+      'button'
+    );
+
+
+  retryButton.className =
+    'retry-button';
+
+
+  retryButton.textContent =
+    '↻ Reenviar';
+
+
+  retryButton.addEventListener(
+    'click',
+    () => {
+
+      resendTransfer(
+        file.transferId
+      );
+
+    }
+  );
+
+
+  statusRow.append(
+    statusText
+  );
+
+
+  if (
+    sender === 'me'
+  ) {
+
+    statusRow.appendChild(
+      retryButton
+    );
+
+  }
+
+
+  main.appendChild(
+    statusRow
+  );
+
+
+  card.append(
+    icon,
+    main
+  );
+
+
   feed.prepend(
     card
   );
+
+
+  transferCards.set(
+    file.transferId,
+    card
+  );
+
+
+  setCardStatus(
+    card,
+    status
+  );
+
+
+  return card;
+
+}
+
+
+// =========================
+// ALTERAR STATUS DO CARD
+// =========================
+
+function setCardStatus(
+  card,
+  status
+) {
+
+  card.classList.remove(
+    'pending',
+    'accepted',
+    'rejected'
+  );
+
+
+  card.classList.add(
+    status
+  );
+
+
+  const statusText =
+    card.querySelector(
+      '.transfer-status'
+    );
+
+
+  if (!statusText) {
+    return;
+  }
+
+
+  statusText.className =
+    `transfer-status ${status}`;
+
+
+  if (
+    status === 'pending'
+  ) {
+
+    statusText.textContent =
+      '◷ Aguardando resposta...';
+
+  }
+
+
+  if (
+    status === 'accepted'
+  ) {
+
+    statusText.textContent =
+      '✓ Recebido pelo outro dispositivo';
+
+  }
+
+
+  if (
+    status === 'rejected'
+  ) {
+
+    statusText.textContent =
+      '✕ Recusado';
+
+  }
 
 }
 
@@ -1781,12 +2351,11 @@ function addFileCard(
 
 btnRecord.addEventListener(
   'click',
+
   async () => {
 
-    /*
-      Já está gravando:
-      clique novamente para parar.
-    */
+    // se já estiver gravando,
+    // apertar novamente para
 
     if (
       mediaRecorder &&
@@ -1797,7 +2366,6 @@ btnRecord.addEventListener(
       mediaRecorder.stop();
 
       return;
-
     }
 
 
@@ -1822,7 +2390,7 @@ btnRecord.addEventListener(
 
 
       mediaRecorder.ondataavailable =
-        event => {
+        (event) => {
 
           if (
             event.data.size > 0
@@ -1873,8 +2441,11 @@ btnRecord.addEventListener(
             recordingStream
               .getTracks()
               .forEach(
-                track =>
-                  track.stop()
+                (track) => {
+
+                  track.stop();
+
+                }
               );
 
           }
@@ -1945,8 +2516,19 @@ btnRecord.addEventListener(
 
 
 // =========================
-// UTILIDADES DE ARQUIVO
+// UTILIDADES
 // =========================
+
+function socketReady() {
+
+  return (
+    socket &&
+    socket.readyState ===
+      WebSocket.OPEN
+  );
+
+}
+
 
 function fileCategory(file) {
 
@@ -1957,7 +2539,9 @@ function fileCategory(file) {
 }
 
 
-function categoryFromMime(mime = '') {
+function categoryFromMime(
+  mime = ''
+) {
 
   if (
     mime.startsWith(
@@ -1997,40 +2581,6 @@ function categoryFromMime(mime = '') {
 }
 
 
-function iconForCategory(category) {
-
-  if (
-    category === 'image'
-  ) {
-
-    return '🖼';
-
-  }
-
-
-  if (
-    category === 'audio'
-  ) {
-
-    return '♪';
-
-  }
-
-
-  if (
-    category === 'video'
-  ) {
-
-    return '▶';
-
-  }
-
-
-  return '↥';
-
-}
-
-
 function formatBytes(bytes) {
 
   if (
@@ -2048,9 +2598,8 @@ function formatBytes(bytes) {
   ) {
 
     return (
-      `${(
-        bytes / 1024
-      ).toFixed(1)} KB`
+      `${(bytes / 1024)
+        .toFixed(1)} KB`
     );
 
   }
@@ -2063,6 +2612,130 @@ function formatBytes(bytes) {
       1024
     ).toFixed(1)} MB`
   );
+
+}
+
+
+// =========================
+// ÍCONES
+// =========================
+
+function iconForCategory(
+  category
+) {
+
+  if (
+    category === 'image'
+  ) {
+
+    return `
+      <svg viewBox="0 0 24 24">
+        <rect
+          x="3"
+          y="4"
+          width="18"
+          height="16"
+          rx="2"
+        />
+
+        <circle
+          cx="8.5"
+          cy="9"
+          r="1.5"
+        />
+
+        <path
+          d="m5 17 4-4 3 3 2-2 5 5"
+        />
+      </svg>
+    `;
+
+  }
+
+
+  if (
+    category === 'audio'
+  ) {
+
+    return `
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M9 18V5l10-2v13"
+        />
+
+        <circle
+          cx="6"
+          cy="18"
+          r="3"
+        />
+
+        <circle
+          cx="16"
+          cy="16"
+          r="3"
+        />
+      </svg>
+    `;
+
+  }
+
+
+  if (
+    category === 'video'
+  ) {
+
+    return `
+      <svg viewBox="0 0 24 24">
+        <rect
+          x="3"
+          y="5"
+          width="14"
+          height="14"
+          rx="2"
+        />
+
+        <path
+          d="m17 10 4-2v8l-4-2z"
+        />
+      </svg>
+    `;
+
+  }
+
+
+  return `
+    <svg viewBox="0 0 24 24">
+      <path
+        d="M6 2h8l4 4v16H6z"
+      />
+
+      <path
+        d="M14 2v5h5"
+      />
+    </svg>
+  `;
+
+}
+
+
+function trashIcon() {
+
+  return `
+    <svg viewBox="0 0 24 24">
+
+      <path
+        d="
+          M4 7h16
+          M9 7V4h6v3
+          M8 11v6
+          M12 11v6
+          M16 11v6
+          M6 7l1 14h10l1-14
+        "
+      />
+
+    </svg>
+  `;
 
 }
 
@@ -2090,10 +2763,6 @@ function showToast(
   );
 
 
-  /*
-    Vibração curta no celular.
-  */
-
   if (
     strongFeedback &&
     navigator.vibrate
@@ -2106,13 +2775,9 @@ function showToast(
   }
 
 
-  /*
-    Som curto.
-    Principalmente útil para
-    copiar e download.
-  */
-
-  if (strongFeedback) {
+  if (
+    strongFeedback
+  ) {
 
     playFeedbackSound();
 
@@ -2135,6 +2800,8 @@ function showToast(
 }
 
 
+// som curtinho de confirmação
+
 function playFeedbackSound() {
 
   try {
@@ -2145,9 +2812,7 @@ function playFeedbackSound() {
 
 
     if (!AudioCtx) {
-
       return;
-
     }
 
 
@@ -2208,14 +2873,30 @@ btnDestroy.addEventListener(
     stopScanner();
 
 
-    if (socket) {
+    if (
+      socketReady()
+    ) {
 
-      socket.close();
+      socket.send(
+        JSON.stringify({
+          type:
+            'end_session'
+        })
+      );
+
+
+      // fallback caso o servidor
+      // não responda
+      setTimeout(
+        goHome,
+        700
+      );
+
+    } else {
+
+      goHome();
 
     }
-
-
-    goHome();
 
   }
 );
@@ -2259,7 +2940,9 @@ window.addEventListener(
   'DOMContentLoaded',
   () => {
 
-    if (targetRoom) {
+    if (
+      targetRoom
+    ) {
 
       showConnectView(
         joiningView
