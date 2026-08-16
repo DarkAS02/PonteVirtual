@@ -7,11 +7,18 @@ const WS_URL =
     ? `wss://${window.location.host}`
     : `ws://${window.location.host}`;
 
+
 const isMobile =
-  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  /Android|iPhone|iPad|iPod/i.test(
+    navigator.userAgent
+  );
+
 
 const params =
-  new URLSearchParams(window.location.search);
+  new URLSearchParams(
+    window.location.search
+  );
+
 
 const targetRoom =
   params.get('room');
@@ -22,37 +29,67 @@ const targetRoom =
 // =========================
 
 let socket = null;
+
 let currentRoomId = null;
 
-let pcQrInterval = null;
-let pcTimerInterval = null;
+let qrCreator =
+  null;
 
-let mobileQrInterval = null;
-let mobileTimerInterval = null;
+
+let pcQrInterval =
+  null;
+
+let pcTimerInterval =
+  null;
+
+
+let mobileQrInterval =
+  null;
+
+let mobileTimerInterval =
+  null;
+
 
 let scanner = null;
-let scanningLocked = false;
 
-let mediaRecorder = null;
-let recordingStream = null;
-let audioChunks = [];
-
-let toastTimer = null;
+let scanningLocked =
+  false;
 
 
-// fila para vários arquivos recebidos
-const incomingQueue = [];
+let mediaRecorder =
+  null;
 
-let currentIncoming = null;
+let recordingStream =
+  null;
+
+let audioChunks =
+  [];
 
 
-// arquivos enviados ficam na memória
-// enquanto a sessão existir
+let toastTimer =
+  null;
+
+
+// Arquivos recebidos
+// ficam em fila
+
+const incomingQueue =
+  [];
+
+let currentIncoming =
+  null;
+
+
+// Arquivos enviados
+// permanecem na memória
+// durante a sessão
+
 const sentTransfers =
   new Map();
 
 
-// cards existentes na tela
+// transferId -> card
+
 const transferCards =
   new Map();
 
@@ -62,170 +99,294 @@ const transferCards =
 // =========================
 
 const screenConnect =
-  document.getElementById('screen-connect');
+  document.getElementById(
+    'screen-connect'
+  );
+
 
 const screenApp =
-  document.getElementById('screen-app');
+  document.getElementById(
+    'screen-app'
+  );
 
 
 const pcView =
-  document.getElementById('pc-view');
+  document.getElementById(
+    'pc-view'
+  );
+
 
 const mobileView =
-  document.getElementById('mobile-view');
+  document.getElementById(
+    'mobile-view'
+  );
+
 
 const scannerView =
-  document.getElementById('scanner-view');
+  document.getElementById(
+    'scanner-view'
+  );
+
 
 const mobileQrView =
-  document.getElementById('mobile-qr-view');
+  document.getElementById(
+    'mobile-qr-view'
+  );
+
 
 const joiningView =
-  document.getElementById('joining-view');
+  document.getElementById(
+    'joining-view'
+  );
 
 
 const qrcodeContainer =
-  document.getElementById('qrcode');
+  document.getElementById(
+    'qrcode'
+  );
+
 
 const qrProgress =
-  document.getElementById('qr-progress');
+  document.getElementById(
+    'qr-progress'
+  );
+
 
 const timerText =
-  document.getElementById('timer-text');
+  document.getElementById(
+    'timer-text'
+  );
 
 
 const mobileQrcode =
-  document.getElementById('mobile-qrcode');
+  document.getElementById(
+    'mobile-qrcode'
+  );
+
 
 const mobileQrProgress =
-  document.getElementById('mobile-qr-progress');
+  document.getElementById(
+    'mobile-qr-progress'
+  );
+
 
 const mobileTimerText =
-  document.getElementById('mobile-timer-text');
+  document.getElementById(
+    'mobile-timer-text'
+  );
 
 
 const btnOpenScanner =
-  document.getElementById('btn-open-scanner');
+  document.getElementById(
+    'btn-open-scanner'
+  );
+
 
 const btnCloseScanner =
-  document.getElementById('btn-close-scanner');
+  document.getElementById(
+    'btn-close-scanner'
+  );
+
 
 const btnGenerateQR =
-  document.getElementById('btn-generate-qr');
+  document.getElementById(
+    'btn-generate-qr'
+  );
+
 
 const btnBackMobileQR =
-  document.getElementById('btn-back-mobile-qr');
+  document.getElementById(
+    'btn-back-mobile-qr'
+  );
+
 
 const btnDestroy =
-  document.getElementById('btn-destroy');
+  document.getElementById(
+    'btn-destroy'
+  );
 
 
 const tabs =
-  document.querySelectorAll('.tab');
+  document.querySelectorAll(
+    '.tab'
+  );
+
 
 const panels =
-  document.querySelectorAll('.tab-panel');
+  document.querySelectorAll(
+    '.tab-panel'
+  );
 
 
 const dropZone =
-  document.getElementById('drop-zone');
+  document.getElementById(
+    'drop-zone'
+  );
+
 
 const selectButton =
-  document.querySelector('.select-button');
+  document.querySelector(
+    '.select-button'
+  );
 
 
 const attachFile =
-  document.getElementById('attach-file');
+  document.getElementById(
+    'attach-file'
+  );
+
 
 const attachPhoto =
-  document.getElementById('attach-photo');
+  document.getElementById(
+    'attach-photo'
+  );
+
 
 const attachAudio =
-  document.getElementById('attach-audio');
+  document.getElementById(
+    'attach-audio'
+  );
 
 
 const mediaFeed =
-  document.getElementById('media-feed');
+  document.getElementById(
+    'media-feed'
+  );
+
 
 const textFeed =
-  document.getElementById('text-feed');
+  document.getElementById(
+    'text-feed'
+  );
+
 
 const audioFeed =
-  document.getElementById('audio-feed');
+  document.getElementById(
+    'audio-feed'
+  );
 
 
 const textInput =
-  document.getElementById('text-input');
+  document.getElementById(
+    'text-input'
+  );
+
 
 const btnSendText =
-  document.getElementById('btn-send-text');
+  document.getElementById(
+    'btn-send-text'
+  );
 
 
 const btnRecord =
-  document.getElementById('btn-record');
+  document.getElementById(
+    'btn-record'
+  );
+
 
 const recordIcon =
-  document.getElementById('record-icon');
+  document.getElementById(
+    'record-icon'
+  );
+
 
 const recordText =
-  document.getElementById('record-text');
+  document.getElementById(
+    'record-text'
+  );
 
 
 const modal =
-  document.getElementById('modal-confirm');
+  document.getElementById(
+    'modal-confirm'
+  );
+
 
 const modalText =
-  document.getElementById('modal-text');
+  document.getElementById(
+    'modal-text'
+  );
+
 
 const btnModalAccept =
-  document.getElementById('btn-modal-accept');
+  document.getElementById(
+    'btn-modal-accept'
+  );
+
 
 const btnModalReject =
-  document.getElementById('btn-modal-reject');
+  document.getElementById(
+    'btn-modal-reject'
+  );
 
 
 const toast =
-  document.getElementById('toast');
+  document.getElementById(
+    'toast'
+  );
 
 
 // =========================
-// GERAR IDs
+// IDS
 // =========================
 
-function randomId(prefix = 'id') {
+function randomId(
+  prefix = 'id'
+) {
 
   if (
     window.crypto &&
-    typeof crypto.randomUUID === 'function'
+    typeof crypto.randomUUID ===
+      'function'
   ) {
 
     return (
       `${prefix}-` +
       crypto
         .randomUUID()
-        .replaceAll('-', '')
-        .substring(0, 16)
+        .replaceAll(
+          '-',
+          ''
+        )
+        .substring(
+          0,
+          16
+        )
     );
 
   }
 
+
   return (
     `${prefix}-` +
-    Date.now().toString(36) +
+    Date.now()
+      .toString(36) +
     Math.random()
       .toString(36)
-      .substring(2, 9)
+      .substring(
+        2,
+        9
+      )
   );
+
 }
 
 
 function createRoomId() {
-  return randomId('brg');
+
+  return randomId(
+    'brg'
+  );
+
 }
 
 
 function createTransferId() {
-  return randomId('trf');
+
+  return randomId(
+    'trf'
+  );
+
 }
 
 
@@ -236,172 +397,286 @@ function createTransferId() {
 function connectSocket() {
 
   socket =
-    new WebSocket(WS_URL);
+    new WebSocket(
+      WS_URL
+    );
 
 
-  socket.onopen = () => {
+  socket.onopen =
+    () => {
 
-    if (targetRoom) {
+      // Entrou através
+      // de um QR Code
 
-      showConnectView(
-        joiningView
+      if (targetRoom) {
+
+        showConnectView(
+          joiningView
+        );
+
+
+        socket.send(
+          JSON.stringify({
+            type:
+              'join_room',
+
+            roomId:
+              targetRoom
+          })
+        );
+
+
+        return;
+
+      }
+
+
+      // Celular normal
+
+      if (isMobile) {
+
+        showConnectView(
+          mobileView
+        );
+
+      }
+
+      // PC
+
+      else {
+
+        showConnectView(
+          pcView
+        );
+
+
+        startPcQrCycle();
+
+      }
+
+    };
+
+
+  socket.onmessage =
+    (event) => {
+
+      let data;
+
+
+      try {
+
+        data =
+          JSON.parse(
+            event.data
+          );
+
+      } catch {
+
+        return;
+
+      }
+
+
+      // =========================
+      // SALA CONFIRMADA
+      // =========================
+
+      if (
+        data.type ===
+        'room_created'
+      ) {
+
+        // Ignora confirmação
+        // de QR antigo
+
+        if (
+          data.roomId !==
+          currentRoomId
+        ) {
+
+          return;
+
+        }
+
+
+        drawConfirmedQr(
+          data.roomId
+        );
+
+
+        return;
+
+      }
+
+
+      // =========================
+      // CONECTOU
+      // =========================
+
+      if (
+        data.type ===
+        'connected'
+      ) {
+
+        stopQrTimers();
+
+        stopScanner();
+
+        activateApp();
+
+
+        showToast(
+          'Dispositivo conectado ✓'
+        );
+
+
+        return;
+
+      }
+
+
+      // =========================
+      // TEXTO
+      // =========================
+
+      if (
+        data.type ===
+        'message'
+      ) {
+
+        addTextMessage(
+          data.content,
+          'other'
+        );
+
+
+        return;
+
+      }
+
+
+      // =========================
+      // ARQUIVO
+      // =========================
+
+      if (
+        data.type ===
+        'file_offer'
+      ) {
+
+        queueIncomingTransfer(
+          data
+        );
+
+
+        return;
+
+      }
+
+
+      // =========================
+      // STATUS ARQUIVO
+      // =========================
+
+      if (
+        data.type ===
+        'transfer_status'
+      ) {
+
+        updateTransferStatus(
+          data.transferId,
+          data.status
+        );
+
+
+        return;
+
+      }
+
+
+      // =========================
+      // DESCONECTOU
+      // =========================
+
+      if (
+        data.type ===
+          'session_ended' ||
+        data.type ===
+          'peer_disconnected'
+      ) {
+
+        showToast(
+          'Sessão encerrada'
+        );
+
+
+        setTimeout(
+          goHome,
+          350
+        );
+
+
+        return;
+
+      }
+
+
+      // =========================
+      // ERRO
+      // =========================
+
+      if (
+        data.type ===
+        'error'
+      ) {
+
+        showToast(
+          data.message
+        );
+
+
+        setTimeout(
+          goHome,
+          1200
+        );
+
+      }
+
+    };
+
+
+  socket.onerror =
+    () => {
+
+      showToast(
+        'Erro de conexão com o servidor'
       );
 
-      socket.send(
-        JSON.stringify({
-          type: 'join_room',
-          roomId: targetRoom
-        })
-      );
-
-      return;
-    }
+    };
 
 
-    if (isMobile) {
-
-      showConnectView(
-        mobileView
-      );
-
-    } else {
-
-      showConnectView(
-        pcView
-      );
-
-      startPcQrCycle();
-    }
-
-  };
-
-
-  socket.onmessage = (event) => {
-
-    let data;
-
-    try {
-
-      data =
-        JSON.parse(event.data);
-
-    } catch {
-
-      return;
-    }
-
-
-    if (data.type === 'connected') {
+  socket.onclose =
+    () => {
 
       stopQrTimers();
 
-      stopScanner();
 
-      activateApp();
+      if (
+        !screenApp
+          .classList
+          .contains(
+            'hidden'
+          )
+      ) {
 
-      showToast(
-        'Dispositivo conectado ✓'
-      );
+        setTimeout(
+          goHome,
+          250
+        );
 
-      return;
-    }
+      }
 
-
-    if (data.type === 'message') {
-
-      addTextMessage(
-        data.content,
-        'other'
-      );
-
-      return;
-    }
-
-
-    if (data.type === 'file_offer') {
-
-      queueIncomingTransfer(
-        data
-      );
-
-      return;
-    }
-
-
-    if (
-      data.type ===
-      'transfer_status'
-    ) {
-
-      updateTransferStatus(
-        data.transferId,
-        data.status
-      );
-
-      return;
-    }
-
-
-    if (
-      data.type === 'session_ended' ||
-      data.type === 'peer_disconnected'
-    ) {
-
-      showToast(
-        'Sessão encerrada'
-      );
-
-      setTimeout(
-        goHome,
-        350
-      );
-
-      return;
-    }
-
-
-    if (data.type === 'error') {
-
-      showToast(
-        data.message
-      );
-
-      setTimeout(
-        goHome,
-        1200
-      );
-    }
-
-  };
-
-
-  socket.onerror = () => {
-
-    showToast(
-      'Erro de conexão com o servidor'
-    );
-
-  };
-
-
-  socket.onclose = () => {
-
-    stopQrTimers();
-
-    if (
-      !screenApp.classList.contains(
-        'hidden'
-      )
-    ) {
-
-      setTimeout(
-        goHome,
-        250
-      );
-
-    }
-
-  };
+    };
 
 }
 
@@ -412,60 +687,230 @@ function connectSocket() {
 
 function hideConnectViews() {
 
-  pcView.classList.add(
-    'hidden'
-  );
+  pcView
+    .classList
+    .add('hidden');
 
-  mobileView.classList.add(
-    'hidden'
-  );
 
-  scannerView.classList.add(
-    'hidden'
-  );
+  mobileView
+    .classList
+    .add('hidden');
 
-  mobileQrView.classList.add(
-    'hidden'
-  );
 
-  joiningView.classList.add(
-    'hidden'
-  );
+  scannerView
+    .classList
+    .add('hidden');
+
+
+  mobileQrView
+    .classList
+    .add('hidden');
+
+
+  joiningView
+    .classList
+    .add('hidden');
 
 }
 
 
-function showConnectView(view) {
+function showConnectView(
+  view
+) {
 
   hideConnectViews();
 
-  view.classList.remove(
-    'hidden'
-  );
+
+  view
+    .classList
+    .remove(
+      'hidden'
+    );
 
 }
 
 
 function activateApp() {
 
-  screenConnect.classList.add(
-    'hidden'
-  );
+  screenConnect
+    .classList
+    .add(
+      'hidden'
+    );
 
-  screenApp.classList.remove(
-    'hidden'
+
+  screenApp
+    .classList
+    .remove(
+      'hidden'
+    );
+
+}
+
+
+// =========================
+// PEDIR CRIAÇÃO DO QR
+// =========================
+
+function requestNewRoom(
+  creator
+) {
+
+  if (
+    !socketReady()
+  ) {
+
+    return;
+
+  }
+
+
+  qrCreator =
+    creator;
+
+
+  currentRoomId =
+    createRoomId();
+
+
+  socket.send(
+    JSON.stringify({
+      type:
+        'create_room',
+
+      roomId:
+        currentRoomId
+    })
   );
 
 }
 
 
 // =========================
-// QR CODE PC
+// DESENHAR QR SOMENTE
+// APÓS CONFIRMAÇÃO
+// =========================
+
+function drawConfirmedQr(
+  roomId
+) {
+
+  const joinUrl =
+    `${window.location.origin}` +
+    `${window.location.pathname}` +
+    `?room=${roomId}`;
+
+
+  // =========================
+  // QR DO PC
+  // =========================
+
+  if (
+    qrCreator === 'pc'
+  ) {
+
+    qrcodeContainer.innerHTML =
+      '';
+
+
+    new QRCode(
+      qrcodeContainer,
+      {
+
+        text:
+          joinUrl,
+
+        width:
+          170,
+
+        height:
+          170,
+
+        colorDark:
+          '#04121a',
+
+        colorLight:
+          '#ffffff',
+
+        correctLevel:
+          QRCode.CorrectLevel.M
+
+      }
+    );
+
+
+    startCountdown(
+      timerText,
+      qrProgress,
+      'pc'
+    );
+
+
+    return;
+
+  }
+
+
+  // =========================
+  // QR DO CELULAR
+  // =========================
+
+  if (
+    qrCreator ===
+    'mobile'
+  ) {
+
+    mobileQrcode.innerHTML =
+      '';
+
+
+    new QRCode(
+      mobileQrcode,
+      {
+
+        text:
+          joinUrl,
+
+        width:
+          170,
+
+        height:
+          170,
+
+        colorDark:
+          '#04121a',
+
+        colorLight:
+          '#ffffff',
+
+        correctLevel:
+          QRCode.CorrectLevel.M
+
+      }
+    );
+
+
+    startCountdown(
+      mobileTimerText,
+      mobileQrProgress,
+      'mobile'
+    );
+
+  }
+
+}
+
+
+// =========================
+// QR PC
 // =========================
 
 function startPcQrCycle() {
 
-  generatePcQr();
+  requestNewRoom(
+    'pc'
+  );
+
 
   clearInterval(
     pcQrInterval
@@ -474,203 +919,99 @@ function startPcQrCycle() {
 
   pcQrInterval =
     setInterval(
-      generatePcQr,
+      () => {
+
+        requestNewRoom(
+          'pc'
+        );
+
+      },
+
       50000
     );
 
 }
 
 
-function generatePcQr() {
-
-  if (
-    !socket ||
-    socket.readyState !==
-      WebSocket.OPEN
-  ) {
-    return;
-  }
-
-
-  currentRoomId =
-    createRoomId();
-
-
-  const joinUrl =
-    `${window.location.origin}` +
-    `${window.location.pathname}` +
-    `?room=${currentRoomId}`;
-
-
-  qrcodeContainer.innerHTML =
-    '';
-
-
-  new QRCode(
-    qrcodeContainer,
-    {
-      text: joinUrl,
-      width: 170,
-      height: 170,
-
-      colorDark:
-        '#04121a',
-
-      colorLight:
-        '#ffffff',
-
-      correctLevel:
-        QRCode.CorrectLevel.M
-    }
-  );
-
-
-  socket.send(
-    JSON.stringify({
-      type: 'create_room',
-      roomId: currentRoomId
-    })
-  );
-
-
-  startCountdown(
-    timerText,
-    qrProgress,
-    'pc'
-  );
-
-}
-
-
 // =========================
-// GERAR QR NO CELULAR
+// QR CELULAR
 // =========================
 
-btnGenerateQR.addEventListener(
-  'click',
-  () => {
+btnGenerateQR
+  .addEventListener(
+    'click',
+    () => {
 
-    if (
-      !socket ||
-      socket.readyState !==
-        WebSocket.OPEN
-    ) {
+      if (
+        !socketReady()
+      ) {
 
-      showToast(
-        'Servidor ainda conectando...'
+        showToast(
+          'Servidor ainda conectando...'
+        );
+
+        return;
+
+      }
+
+
+      showConnectView(
+        mobileQrView
       );
 
-      return;
-    }
 
-
-    showConnectView(
-      mobileQrView
-    );
-
-
-    generateMobileQr();
-
-
-    clearInterval(
-      mobileQrInterval
-    );
-
-
-    mobileQrInterval =
-      setInterval(
-        generateMobileQr,
-        50000
+      requestNewRoom(
+        'mobile'
       );
 
-  }
-);
+
+      clearInterval(
+        mobileQrInterval
+      );
 
 
-function generateMobileQr() {
+      mobileQrInterval =
+        setInterval(
+          () => {
 
-  if (
-    !socket ||
-    socket.readyState !==
-      WebSocket.OPEN
-  ) {
-    return;
-  }
+            requestNewRoom(
+              'mobile'
+            );
 
+          },
 
-  currentRoomId =
-    createRoomId();
+          50000
+        );
 
-
-  const joinUrl =
-    `${window.location.origin}` +
-    `${window.location.pathname}` +
-    `?room=${currentRoomId}`;
-
-
-  mobileQrcode.innerHTML =
-    '';
-
-
-  new QRCode(
-    mobileQrcode,
-    {
-      text: joinUrl,
-      width: 170,
-      height: 170,
-
-      colorDark:
-        '#04121a',
-
-      colorLight:
-        '#ffffff',
-
-      correctLevel:
-        QRCode.CorrectLevel.M
     }
   );
 
 
-  socket.send(
-    JSON.stringify({
-      type: 'create_room',
-      roomId: currentRoomId
-    })
+btnBackMobileQR
+  .addEventListener(
+    'click',
+    () => {
+
+      clearInterval(
+        mobileQrInterval
+      );
+
+
+      clearInterval(
+        mobileTimerInterval
+      );
+
+
+      showConnectView(
+        mobileView
+      );
+
+    }
   );
-
-
-  startCountdown(
-    mobileTimerText,
-    mobileQrProgress,
-    'mobile'
-  );
-
-}
-
-
-btnBackMobileQR.addEventListener(
-  'click',
-  () => {
-
-    clearInterval(
-      mobileQrInterval
-    );
-
-    clearInterval(
-      mobileTimerInterval
-    );
-
-
-    showConnectView(
-      mobileView
-    );
-
-  }
-);
 
 
 // =========================
-// CONTADOR DO QR
+// CONTADOR
 // =========================
 
 function startCountdown(
@@ -679,16 +1020,21 @@ function startCountdown(
   type
 ) {
 
-  let seconds = 50;
+  let seconds =
+    50;
 
 
-  if (type === 'pc') {
+  if (
+    type === 'pc'
+  ) {
 
     clearInterval(
       pcTimerInterval
     );
 
-  } else {
+  }
+
+  else {
 
     clearInterval(
       mobileTimerInterval
@@ -725,12 +1071,16 @@ function startCountdown(
               Math.max(
                 seconds,
                 0
-              ) / 50
-            ) * 100
+              ) /
+              50
+            ) *
+            100
           }%`;
 
 
-        if (seconds <= 0) {
+        if (
+          seconds <= 0
+        ) {
 
           clearInterval(
             interval
@@ -744,12 +1094,16 @@ function startCountdown(
     );
 
 
-  if (type === 'pc') {
+  if (
+    type === 'pc'
+  ) {
 
     pcTimerInterval =
       interval;
 
-  } else {
+  }
+
+  else {
 
     mobileTimerInterval =
       interval;
@@ -763,145 +1117,179 @@ function startCountdown(
 // SCANNER
 // =========================
 
-btnOpenScanner.addEventListener(
-  'click',
+btnOpenScanner
+  .addEventListener(
+    'click',
 
-  async () => {
+    async () => {
 
-    showConnectView(
-      scannerView
-    );
-
-
-    scanningLocked =
-      false;
+      showConnectView(
+        scannerView
+      );
 
 
-    try {
+      scanningLocked =
+        false;
 
-      scanner =
-        new Html5Qrcode(
-          'reader'
+
+      try {
+
+        scanner =
+          new Html5Qrcode(
+            'reader'
+          );
+
+
+        await scanner.start(
+
+          {
+            facingMode: {
+              exact:
+                'environment'
+            }
+          },
+
+
+          {
+            fps:
+              18,
+
+            qrbox:
+              (
+                width,
+                height
+              ) => {
+
+                const size =
+                  Math.floor(
+                    Math.min(
+                      width,
+                      height
+                    ) *
+                    0.82
+                  );
+
+
+                return {
+                  width:
+                    size,
+
+                  height:
+                    size
+                };
+
+              },
+
+            disableFlip:
+              false
+          },
+
+
+          async (
+            decodedText
+          ) => {
+
+            if (
+              scanningLocked
+            ) {
+
+              return;
+
+            }
+
+
+            let url;
+
+
+            try {
+
+              url =
+                new URL(
+                  decodedText
+                );
+
+            }
+
+            catch {
+
+              return;
+
+            }
+
+
+            if (
+              url.origin !==
+                window.location.origin ||
+              !url.searchParams.get(
+                'room'
+              )
+            ) {
+
+              showToast(
+                'QR Code inválido'
+              );
+
+              return;
+
+            }
+
+
+            scanningLocked =
+              true;
+
+
+            await stopScanner();
+
+
+            window.location.href =
+              url.href;
+
+          },
+
+
+          () => {}
+
         );
 
 
-      await scanner.start(
-
-        {
-          facingMode: {
-            exact: 'environment'
-          }
-        },
+        setTimeout(
+          improveRunningCamera,
+          600
+        );
 
 
-        {
-          fps: 18,
+      }
 
-          qrbox:
-            (
-              width,
-              height
-            ) => {
+      catch (error) {
 
-              const size =
-                Math.floor(
-                  Math.min(
-                    width,
-                    height
-                  ) * 0.82
-                );
+        console.error(
+          'Erro ao abrir câmera:',
+          error
+        );
 
 
-              return {
-                width: size,
-                height: size
-              };
-
-            },
-
-          disableFlip:
-            false
-        },
+        showToast(
+          'Não foi possível abrir a câmera'
+        );
 
 
-        async (
-          decodedText
-        ) => {
+        showConnectView(
+          mobileView
+        );
 
-          if (
-            scanningLocked
-          ) {
-            return;
-          }
+      }
 
-
-          let url;
+    }
+  );
 
 
-          try {
+btnCloseScanner
+  .addEventListener(
+    'click',
 
-            url =
-              new URL(
-                decodedText
-              );
+    async () => {
 
-          } catch {
-
-            return;
-          }
-
-
-          if (
-            url.origin !==
-              window.location.origin ||
-            !url.searchParams.get(
-              'room'
-            )
-          ) {
-
-            showToast(
-              'QR Code inválido'
-            );
-
-            return;
-          }
-
-
-          scanningLocked =
-            true;
-
-
-          await stopScanner();
-
-
-          window.location.href =
-            url.href;
-
-        },
-
-
-        () => {}
-
-      );
-
-
-      setTimeout(
-        improveRunningCamera,
-        600
-      );
-
-
-    } catch (error) {
-
-      console.error(
-        'Erro ao abrir câmera:',
-        error
-      );
-
-
-      showToast(
-        'Não foi possível abrir a câmera'
-      );
+      await stopScanner();
 
 
       showConnectView(
@@ -909,33 +1297,14 @@ btnOpenScanner.addEventListener(
       );
 
     }
+  );
 
-  }
-);
-
-
-btnCloseScanner.addEventListener(
-  'click',
-
-  async () => {
-
-    await stopScanner();
-
-
-    showConnectView(
-      mobileView
-    );
-
-  }
-);
-
-
-// tenta melhorar a câmera
-// quando o aparelho permitir
 
 async function improveRunningCamera() {
 
-  if (!scanner) return;
+  if (!scanner) {
+    return;
+  }
 
 
   try {
@@ -954,10 +1323,14 @@ async function improveRunningCamera() {
       capabilities.focusMode
     ) {
 
-      constraints.advanced.push({
-        focusMode:
-          'continuous'
-      });
+      constraints
+        .advanced
+        .push({
+
+          focusMode:
+            'continuous'
+
+        });
 
     }
 
@@ -967,11 +1340,13 @@ async function improveRunningCamera() {
     ) {
 
       const min =
-        capabilities.zoom.min ?? 1;
+        capabilities.zoom.min ??
+        1;
 
 
       const max =
-        capabilities.zoom.max ?? 1;
+        capabilities.zoom.max ??
+        1;
 
 
       const desired =
@@ -984,9 +1359,14 @@ async function improveRunningCamera() {
         );
 
 
-      constraints.advanced.push({
-        zoom: desired
-      });
+      constraints
+        .advanced
+        .push({
+
+          zoom:
+            desired
+
+        });
 
     }
 
@@ -997,19 +1377,23 @@ async function improveRunningCamera() {
     ) {
 
       constraints.width = {
-        ideal: 1920
+        ideal:
+          1920
       };
 
 
       constraints.height = {
-        ideal: 1080
+        ideal:
+          1080
       };
 
     }
 
 
     if (
-      constraints.advanced.length ||
+      constraints
+        .advanced
+        .length ||
       constraints.width
     ) {
 
@@ -1020,10 +1404,12 @@ async function improveRunningCamera() {
 
     }
 
-  } catch (error) {
+  }
+
+  catch {
 
     console.log(
-      'Ajustes avançados da câmera não disponíveis.'
+      'Ajustes avançados de câmera não disponíveis.'
     );
 
   }
@@ -1033,24 +1419,31 @@ async function improveRunningCamera() {
 
 async function stopScanner() {
 
-  if (!scanner) return;
+  if (!scanner) {
+    return;
+  }
 
 
   try {
 
     await scanner.stop();
 
-  } catch {}
+  }
+
+  catch {}
 
 
   try {
 
     scanner.clear();
 
-  } catch {}
+  }
+
+  catch {}
 
 
-  scanner = null;
+  scanner =
+    null;
 
 }
 
@@ -1069,9 +1462,11 @@ tabs.forEach(
         tabs.forEach(
           (item) => {
 
-            item.classList.remove(
-              'active'
-            );
+            item
+              .classList
+              .remove(
+                'active'
+              );
 
           }
         );
@@ -1080,24 +1475,29 @@ tabs.forEach(
         panels.forEach(
           (panel) => {
 
-            panel.classList.remove(
-              'active'
-            );
+            panel
+              .classList
+              .remove(
+                'active'
+              );
 
           }
         );
 
 
-        tab.classList.add(
-          'active'
-        );
+        tab
+          .classList
+          .add(
+            'active'
+          );
 
 
         document
           .getElementById(
             `tab-${tab.dataset.tab}`
           )
-          .classList.add(
+          .classList
+          .add(
             'active'
           );
 
@@ -1112,38 +1512,45 @@ tabs.forEach(
 // TEXTO
 // =========================
 
-btnSendText.addEventListener(
-  'click',
-  sendText
-);
+btnSendText
+  .addEventListener(
+    'click',
+    sendText
+  );
 
 
-textInput.addEventListener(
-  'keydown',
-  (event) => {
+textInput
+  .addEventListener(
+    'keydown',
+    (event) => {
 
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey
-    ) {
+      if (
+        event.key ===
+          'Enter' &&
+        !event.shiftKey
+      ) {
 
-      event.preventDefault();
+        event.preventDefault();
 
-      sendText();
+        sendText();
+
+      }
 
     }
-
-  }
-);
+  );
 
 
 function sendText() {
 
   const content =
-    textInput.value.trim();
+    textInput
+      .value
+      .trim();
 
 
-  if (!content) return;
+  if (!content) {
+    return;
+  }
 
 
   if (!socketReady()) {
@@ -1153,14 +1560,21 @@ function sendText() {
     );
 
     return;
+
   }
 
 
   socket.send(
     JSON.stringify({
-      type: 'message',
+
+      type:
+        'message',
+
       content,
-      contentType: 'text'
+
+      contentType:
+        'text'
+
     })
   );
 
@@ -1271,17 +1685,20 @@ function addTextMessage(
               'Copiar';
 
 
-            copy.classList.remove(
-              'copied'
-            );
+            copy
+              .classList
+              .remove(
+                'copied'
+              );
 
           },
 
           1600
         );
 
+      }
 
-      } catch {
+      catch {
 
         showToast(
           'Não foi possível copiar'
@@ -1316,89 +1733,85 @@ function addTextMessage(
 
 
 // =========================
-// SELEÇÃO MÚLTIPLA
+// ARQUIVOS MÚLTIPLOS
 // =========================
 
-selectButton.addEventListener(
-  'click',
-  (event) => {
+selectButton
+  .addEventListener(
+    'click',
+    (event) => {
 
-    event.preventDefault();
-    event.stopPropagation();
+      event.preventDefault();
 
-    attachFile.click();
-
-  }
-);
+      event.stopPropagation();
 
 
-attachFile.addEventListener(
-  'change',
-  (event) => {
+      attachFile.click();
 
-    const files =
-      Array.from(
-        event.target.files
+    }
+  );
+
+
+attachFile
+  .addEventListener(
+    'change',
+    (event) => {
+
+      sendFiles(
+        Array.from(
+          event.target.files
+        )
       );
 
 
-    sendFiles(
-      files
-    );
+      event.target.value =
+        '';
+
+    }
+  );
 
 
-    event.target.value =
-      '';
+attachPhoto
+  .addEventListener(
+    'change',
+    (event) => {
 
-  }
-);
-
-
-attachPhoto.addEventListener(
-  'change',
-  (event) => {
-
-    const files =
-      Array.from(
-        event.target.files
+      sendFiles(
+        Array.from(
+          event.target.files
+        )
       );
 
 
-    sendFiles(
-      files
-    );
+      event.target.value =
+        '';
+
+    }
+  );
 
 
-    event.target.value =
-      '';
+attachAudio
+  .addEventListener(
+    'change',
+    (event) => {
 
-  }
-);
-
-
-attachAudio.addEventListener(
-  'change',
-  (event) => {
-
-    const files =
-      Array.from(
-        event.target.files
+      sendFiles(
+        Array.from(
+          event.target.files
+        )
       );
 
 
-    sendFiles(
-      files
-    );
+      event.target.value =
+        '';
+
+    }
+  );
 
 
-    event.target.value =
-      '';
-
-  }
-);
-
-
-function sendFiles(files) {
+function sendFiles(
+  files
+) {
 
   if (!files.length) {
     return;
@@ -1428,15 +1841,19 @@ function sendFiles(files) {
 // ENVIO DE ARQUIVO
 // =========================
 
-function sendFile(file) {
+function sendFile(
+  file
+) {
 
-  // temporário para o protótipo
   const maxSize =
-    6 * 1024 * 1024;
+    6 *
+    1024 *
+    1024;
 
 
   if (
-    file.size > maxSize
+    file.size >
+    maxSize
   ) {
 
     showToast(
@@ -1444,6 +1861,7 @@ function sendFile(file) {
     );
 
     return;
+
   }
 
 
@@ -1454,6 +1872,7 @@ function sendFile(file) {
     );
 
     return;
+
   }
 
 
@@ -1530,7 +1949,7 @@ function sendFile(file) {
 
 
 // =========================
-// ARRASTAR ARQUIVOS
+// DRAG & DROP
 // =========================
 
 [
@@ -1544,12 +1963,15 @@ function sendFile(file) {
       (event) => {
 
         event.preventDefault();
+
         event.stopPropagation();
 
 
-        dropZone.classList.add(
-          'dragging'
-        );
+        dropZone
+          .classList
+          .add(
+            'dragging'
+          );
 
       }
     );
@@ -1569,12 +1991,15 @@ function sendFile(file) {
       (event) => {
 
         event.preventDefault();
+
         event.stopPropagation();
 
 
-        dropZone.classList.remove(
-          'dragging'
-        );
+        dropZone
+          .classList
+          .remove(
+            'dragging'
+          );
 
       }
     );
@@ -1587,14 +2012,12 @@ dropZone.addEventListener(
   'drop',
   (event) => {
 
-    const files =
-      Array.from(
-        event.dataTransfer.files
-      );
-
-
     sendFiles(
-      files
+      Array.from(
+        event
+          .dataTransfer
+          .files
+      )
     );
 
   }
@@ -1625,7 +2048,9 @@ function showNextIncoming() {
     currentIncoming ||
     !incomingQueue.length
   ) {
+
     return;
+
   }
 
 
@@ -1637,125 +2062,137 @@ function showNextIncoming() {
     `${currentIncoming.name} • ${currentIncoming.size}`;
 
 
-  modal.classList.remove(
-    'hidden'
-  );
+  modal
+    .classList
+    .remove(
+      'hidden'
+    );
 
 }
 
 
 // =========================
-// ACEITAR
+// ACEITAR ARQUIVO
 // =========================
 
-btnModalAccept.addEventListener(
-  'click',
-  () => {
+btnModalAccept
+  .addEventListener(
+    'click',
+    () => {
 
-    if (
-      !currentIncoming
-    ) {
-      return;
+      if (
+        !currentIncoming
+      ) {
+
+        return;
+
+      }
+
+
+      const file =
+        currentIncoming;
+
+
+      downloadFile(
+        file
+      );
+
+
+      addFileCard(
+        file,
+        'other',
+        'accepted'
+      );
+
+
+      sendTransferStatus(
+        file.transferId,
+        'accepted'
+      );
+
+
+      modal
+        .classList
+        .add(
+          'hidden'
+        );
+
+
+      currentIncoming =
+        null;
+
+
+      showToast(
+        '✓ Download iniciado'
+      );
+
+
+      showNextIncoming();
+
     }
-
-
-    const file =
-      currentIncoming;
-
-
-    downloadFile(
-      file
-    );
-
-
-    addFileCard(
-      file,
-      'other',
-      'accepted'
-    );
-
-
-    sendTransferStatus(
-      file.transferId,
-      'accepted'
-    );
-
-
-    modal.classList.add(
-      'hidden'
-    );
-
-
-    currentIncoming =
-      null;
-
-
-    showToast(
-      '✓ Download iniciado'
-    );
-
-
-    showNextIncoming();
-
-  }
-);
+  );
 
 
 // =========================
 // RECUSAR
 // =========================
 
-btnModalReject.addEventListener(
-  'click',
-  () => {
+btnModalReject
+  .addEventListener(
+    'click',
+    () => {
 
-    if (
-      !currentIncoming
-    ) {
-      return;
+      if (
+        !currentIncoming
+      ) {
+
+        return;
+
+      }
+
+
+      const file =
+        currentIncoming;
+
+
+      addFileCard(
+        file,
+        'other',
+        'rejected'
+      );
+
+
+      sendTransferStatus(
+        file.transferId,
+        'rejected'
+      );
+
+
+      modal
+        .classList
+        .add(
+          'hidden'
+        );
+
+
+      currentIncoming =
+        null;
+
+
+      showToast(
+        'Arquivo recusado',
+        false
+      );
+
+
+      showNextIncoming();
+
     }
-
-
-    const file =
-      currentIncoming;
-
-
-    addFileCard(
-      file,
-      'other',
-      'rejected'
-    );
-
-
-    sendTransferStatus(
-      file.transferId,
-      'rejected'
-    );
-
-
-    modal.classList.add(
-      'hidden'
-    );
-
-
-    currentIncoming =
-      null;
-
-
-    showToast(
-      'Arquivo recusado',
-      false
-    );
-
-
-    showNextIncoming();
-
-  }
-);
+  );
 
 
 // =========================
-// AVISAR STATUS
+// STATUS
 // =========================
 
 function sendTransferStatus(
@@ -1770,21 +2207,19 @@ function sendTransferStatus(
 
   socket.send(
     JSON.stringify({
+
       type:
         'transfer_status',
 
       transferId,
 
       status
+
     })
   );
 
 }
 
-
-// =========================
-// RECEBER STATUS
-// =========================
 
 function updateTransferStatus(
   transferId,
@@ -1809,7 +2244,8 @@ function updateTransferStatus(
 
 
   if (
-    status === 'accepted'
+    status ===
+    'accepted'
   ) {
 
     showToast(
@@ -1820,7 +2256,8 @@ function updateTransferStatus(
 
 
   if (
-    status === 'rejected'
+    status ===
+    'rejected'
   ) {
 
     showToast(
@@ -1854,6 +2291,7 @@ function resendTransfer(
     );
 
     return;
+
   }
 
 
@@ -1864,6 +2302,7 @@ function resendTransfer(
     );
 
     return;
+
   }
 
 
@@ -1902,7 +2341,9 @@ function resendTransfer(
 // DOWNLOAD
 // =========================
 
-function downloadFile(file) {
+function downloadFile(
+  file
+) {
 
   const link =
     document.createElement(
@@ -1932,7 +2373,7 @@ function downloadFile(file) {
 
 
 // =========================
-// CRIAR CARD
+// CARD DE ARQUIVO
 // =========================
 
 function addFileCard(
@@ -2118,7 +2559,7 @@ function addFileCard(
   );
 
 
-  // PREVIEW DE IMAGEM
+  // IMAGEM
 
   if (
     category === 'image' &&
@@ -2150,7 +2591,7 @@ function addFileCard(
   }
 
 
-  // PLAYER DE ÁUDIO
+  // ÁUDIO
 
   if (
     category === 'audio' &&
@@ -2200,7 +2641,7 @@ function addFileCard(
     'transfer-status';
 
 
-  // BOTÃO REENVIAR
+  // REENVIAR
 
   const retryButton =
     document.createElement(
@@ -2228,7 +2669,7 @@ function addFileCard(
   );
 
 
-  statusRow.append(
+  statusRow.appendChild(
     statusText
   );
 
@@ -2278,7 +2719,7 @@ function addFileCard(
 
 
 // =========================
-// ALTERAR STATUS DO CARD
+// STATUS VISUAL
 // =========================
 
 function setCardStatus(
@@ -2314,7 +2755,8 @@ function setCardStatus(
 
 
   if (
-    status === 'pending'
+    status ===
+    'pending'
   ) {
 
     statusText.textContent =
@@ -2324,7 +2766,8 @@ function setCardStatus(
 
 
   if (
-    status === 'accepted'
+    status ===
+    'accepted'
   ) {
 
     statusText.textContent =
@@ -2334,7 +2777,8 @@ function setCardStatus(
 
 
   if (
-    status === 'rejected'
+    status ===
+    'rejected'
   ) {
 
     statusText.textContent =
@@ -2354,9 +2798,6 @@ btnRecord.addEventListener(
 
   async () => {
 
-    // se já estiver gravando,
-    // apertar novamente para
-
     if (
       mediaRecorder &&
       mediaRecorder.state ===
@@ -2366,6 +2807,7 @@ btnRecord.addEventListener(
       mediaRecorder.stop();
 
       return;
+
     }
 
 
@@ -2375,7 +2817,10 @@ btnRecord.addEventListener(
         await navigator
           .mediaDevices
           .getUserMedia({
-            audio: true
+
+            audio:
+              true
+
           });
 
 
@@ -2393,7 +2838,8 @@ btnRecord.addEventListener(
         (event) => {
 
           if (
-            event.data.size > 0
+            event.data.size >
+            0
           ) {
 
             audioChunks.push(
@@ -2417,7 +2863,10 @@ btnRecord.addEventListener(
             new Blob(
               audioChunks,
               {
-                type: mime
+
+                type:
+                  mime
+
               }
             );
 
@@ -2429,7 +2878,10 @@ btnRecord.addEventListener(
               `audio-${Date.now()}.webm`,
 
               {
-                type: mime
+
+                type:
+                  mime
+
               }
             );
 
@@ -2455,9 +2907,11 @@ btnRecord.addEventListener(
             null;
 
 
-          btnRecord.classList.remove(
-            'recording'
-          );
+          btnRecord
+            .classList
+            .remove(
+              'recording'
+            );
 
 
           recordIcon.textContent =
@@ -2478,9 +2932,11 @@ btnRecord.addEventListener(
       mediaRecorder.start();
 
 
-      btnRecord.classList.add(
-        'recording'
-      );
+      btnRecord
+        .classList
+        .add(
+          'recording'
+        );
 
 
       recordIcon.textContent =
@@ -2496,8 +2952,10 @@ btnRecord.addEventListener(
         false
       );
 
+    }
 
-    } catch (error) {
+
+    catch (error) {
 
       console.error(
         'Erro no microfone:',
@@ -2530,7 +2988,9 @@ function socketReady() {
 }
 
 
-function fileCategory(file) {
+function fileCategory(
+  file
+) {
 
   return categoryFromMime(
     file.type
@@ -2581,7 +3041,9 @@ function categoryFromMime(
 }
 
 
-function formatBytes(bytes) {
+function formatBytes(
+  bytes
+) {
 
   if (
     bytes < 1024
@@ -2598,8 +3060,10 @@ function formatBytes(bytes) {
   ) {
 
     return (
-      `${(bytes / 1024)
-        .toFixed(1)} KB`
+      `${(
+        bytes /
+        1024
+      ).toFixed(1)} KB`
     );
 
   }
@@ -2625,11 +3089,13 @@ function iconForCategory(
 ) {
 
   if (
-    category === 'image'
+    category ===
+    'image'
   ) {
 
     return `
       <svg viewBox="0 0 24 24">
+
         <rect
           x="3"
           y="4"
@@ -2647,6 +3113,7 @@ function iconForCategory(
         <path
           d="m5 17 4-4 3 3 2-2 5 5"
         />
+
       </svg>
     `;
 
@@ -2654,11 +3121,13 @@ function iconForCategory(
 
 
   if (
-    category === 'audio'
+    category ===
+    'audio'
   ) {
 
     return `
       <svg viewBox="0 0 24 24">
+
         <path
           d="M9 18V5l10-2v13"
         />
@@ -2674,6 +3143,7 @@ function iconForCategory(
           cy="16"
           r="3"
         />
+
       </svg>
     `;
 
@@ -2681,11 +3151,13 @@ function iconForCategory(
 
 
   if (
-    category === 'video'
+    category ===
+    'video'
   ) {
 
     return `
       <svg viewBox="0 0 24 24">
+
         <rect
           x="3"
           y="5"
@@ -2697,6 +3169,7 @@ function iconForCategory(
         <path
           d="m17 10 4-2v8l-4-2z"
         />
+
       </svg>
     `;
 
@@ -2705,6 +3178,7 @@ function iconForCategory(
 
   return `
     <svg viewBox="0 0 24 24">
+
       <path
         d="M6 2h8l4 4v16H6z"
       />
@@ -2712,6 +3186,7 @@ function iconForCategory(
       <path
         d="M14 2v5h5"
       />
+
     </svg>
   `;
 
@@ -2758,9 +3233,11 @@ function showToast(
     message;
 
 
-  toast.classList.add(
-    'show'
-  );
+  toast
+    .classList
+    .add(
+      'show'
+    );
 
 
   if (
@@ -2788,9 +3265,11 @@ function showToast(
     setTimeout(
       () => {
 
-        toast.classList.remove(
-          'show'
-        );
+        toast
+          .classList
+          .remove(
+            'show'
+          );
 
       },
 
@@ -2799,8 +3278,6 @@ function showToast(
 
 }
 
-
-// som curtinho de confirmação
 
 function playFeedbackSound() {
 
@@ -2821,19 +3298,25 @@ function playFeedbackSound() {
 
 
     const oscillator =
-      context.createOscillator();
+      context
+        .createOscillator();
 
 
     const gain =
-      context.createGain();
+      context
+        .createGain();
 
 
-    oscillator.frequency.value =
-      650;
+    oscillator
+      .frequency
+      .value =
+        650;
 
 
-    gain.gain.value =
-      0.025;
+    gain
+      .gain
+      .value =
+        0.025;
 
 
     oscillator.connect(
@@ -2854,8 +3337,9 @@ function playFeedbackSound() {
       0.055
     );
 
+  }
 
-  } catch {}
+  catch {}
 
 }
 
@@ -2879,20 +3363,22 @@ btnDestroy.addEventListener(
 
       socket.send(
         JSON.stringify({
+
           type:
             'end_session'
+
         })
       );
 
 
-      // fallback caso o servidor
-      // não responda
       setTimeout(
         goHome,
         700
       );
 
-    } else {
+    }
+
+    else {
 
       goHome();
 
@@ -2908,13 +3394,16 @@ function stopQrTimers() {
     pcQrInterval
   );
 
+
   clearInterval(
     pcTimerInterval
   );
 
+
   clearInterval(
     mobileQrInterval
   );
+
 
   clearInterval(
     mobileTimerInterval
@@ -2933,7 +3422,7 @@ function goHome() {
 
 
 // =========================
-// INICIALIZAÇÃO
+// INICIAR
 // =========================
 
 window.addEventListener(
@@ -2948,7 +3437,9 @@ window.addEventListener(
         joiningView
       );
 
-    } else if (
+    }
+
+    else if (
       isMobile
     ) {
 
@@ -2956,7 +3447,9 @@ window.addEventListener(
         mobileView
       );
 
-    } else {
+    }
+
+    else {
 
       showConnectView(
         pcView
