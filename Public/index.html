@@ -16,37 +16,54 @@
 
   <title>Ponte Virtual</title>
 
-  <link rel="stylesheet" href="style.css">
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+  ></script>
+
+  <script
+    src="https://unpkg.com/html5-qrcode"
+  ></script>
 </head>
 
 <body>
 
 <div id="app">
 
-  <!-- ========================= -->
-  <!-- TELA DE CONEXÃO -->
-  <!-- ========================= -->
-
-  <section id="screen-connect" class="screen">
+  <section
+    id="screen-connect"
+    class="screen"
+  >
 
     <div class="brand">
-      <div class="brand-icon">↔</div>
+
+      <div class="brand-icon">
+        ↔
+      </div>
 
       <div>
         <h1>Ponte Virtual</h1>
-        <p>Transferência temporária entre dispositivos</p>
+
+        <p>
+          Transferência temporária entre dispositivos
+        </p>
       </div>
+
     </div>
 
 
-    <!-- PC -->
+    <div
+      id="pc-view"
+      class="connect-card"
+    >
 
-    <div id="pc-view" class="connect-card">
-
-      <h2>Conectar celular</h2>
+      <h2>
+        Conectar celular
+      </h2>
 
       <p class="muted">
         Escaneie o QR Code com seu celular
@@ -59,14 +76,16 @@
       <div class="qr-timer">
 
         <div class="timer-track">
+
           <div
             id="qr-progress"
             class="timer-progress"
           ></div>
+
         </div>
 
         <span id="timer-text">
-          Expira em 60s
+          Expira em 50s
         </span>
 
       </div>
@@ -78,11 +97,14 @@
     </div>
 
 
-    <!-- MENU MOBILE -->
+    <div
+      id="mobile-view"
+      class="connect-card hidden"
+    >
 
-    <div id="mobile-view" class="connect-card hidden">
-
-      <h2>Conectar dispositivo</h2>
+      <h2>
+        Conectar dispositivo
+      </h2>
 
       <p class="muted">
         Escolha como deseja iniciar
@@ -92,12 +114,32 @@
         id="btn-open-scanner"
         class="connect-action primary"
       >
-        <span class="connect-icon">▣</span>
+
+        <span class="connect-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3M7 12h10"
+            />
+          </svg>
+
+        </span>
 
         <span>
-          <strong>Escanear QR Code</strong>
-          <small>Conectar a outro dispositivo</small>
+
+          <strong>
+            Escanear QR Code
+          </strong>
+
+          <small>
+            Conectar a outro dispositivo
+          </small>
+
         </span>
+
       </button>
 
 
@@ -105,18 +147,60 @@
         id="btn-generate-qr"
         class="connect-action secondary"
       >
-        <span class="connect-icon">⌗</span>
+
+        <span class="connect-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="6"
+              height="6"
+              rx="1"
+            />
+
+            <rect
+              x="15"
+              y="3"
+              width="6"
+              height="6"
+              rx="1"
+            />
+
+            <rect
+              x="3"
+              y="15"
+              width="6"
+              height="6"
+              rx="1"
+            />
+
+            <path
+              d="M15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"
+            />
+          </svg>
+
+        </span>
 
         <span>
-          <strong>Gerar QR Code</strong>
-          <small>Outro celular escaneia você</small>
+
+          <strong>
+            Gerar QR Code
+          </strong>
+
+          <small>
+            Outro celular escaneia você
+          </small>
+
         </span>
+
       </button>
 
     </div>
 
-
-    <!-- SCANNER -->
 
     <div
       id="scanner-view"
@@ -124,11 +208,15 @@
     >
 
       <div class="scanner-title">
-        <h2>Escanear QR Code</h2>
+
+        <h2>
+          Escanear QR Code
+        </h2>
 
         <p>
           Posicione o código dentro da área
         </p>
+
       </div>
 
       <div id="reader"></div>
@@ -143,14 +231,14 @@
     </div>
 
 
-    <!-- QR MOBILE -->
-
     <div
       id="mobile-qr-view"
       class="connect-card hidden"
     >
 
-      <h2>Seu QR Code</h2>
+      <h2>
+        Seu QR Code
+      </h2>
 
       <p class="muted">
         Peça para o outro celular escanear
@@ -163,14 +251,16 @@
       <div class="qr-timer">
 
         <div class="timer-track">
+
           <div
             id="mobile-qr-progress"
             class="timer-progress"
           ></div>
+
         </div>
 
         <span id="mobile-timer-text">
-          Expira em 60s
+          Expira em 50s
         </span>
 
       </div>
@@ -185,8 +275,6 @@
     </div>
 
 
-    <!-- CONECTANDO -->
-
     <div
       id="joining-view"
       class="connect-card hidden"
@@ -194,7 +282,9 @@
 
       <div class="loading-circle"></div>
 
-      <h2>Conectando...</h2>
+      <h2>
+        Conectando...
+      </h2>
 
       <p class="muted">
         Validando a sessão
@@ -205,16 +295,10 @@
   </section>
 
 
-  <!-- ========================= -->
-  <!-- ÁREA CONECTADA -->
-  <!-- ========================= -->
-
   <section
     id="screen-app"
     class="screen app-screen hidden"
   >
-
-    <!-- TOPO -->
 
     <header class="topbar">
 
@@ -224,7 +308,9 @@
           ↔
         </div>
 
-        <strong>Ponte Virtual</strong>
+        <strong>
+          Ponte Virtual
+        </strong>
 
       </div>
 
@@ -232,8 +318,11 @@
       <div class="topbar-right">
 
         <div class="connection-status">
+
           <span class="status-dot"></span>
+
           Conectado
+
         </div>
 
         <button
@@ -247,8 +336,6 @@
 
     </header>
 
-
-    <!-- ABAS -->
 
     <nav class="tabs">
 
@@ -276,14 +363,8 @@
     </nav>
 
 
-    <!-- ========================= -->
-    <!-- CONTEÚDO -->
-    <!-- ========================= -->
-
     <main class="tab-container">
 
-
-      <!-- MÍDIA -->
 
       <section
         id="tab-media"
@@ -293,11 +374,15 @@
         <div class="section-header">
 
           <div>
-            <h2>Arquivos e fotos</h2>
+
+            <h2>
+              Arquivos e fotos
+            </h2>
 
             <p>
               Envie arquivos para o dispositivo conectado
             </p>
+
           </div>
 
         </div>
@@ -309,7 +394,16 @@
         >
 
           <div class="drop-icon">
-            ⇧
+
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 16V4M7 9l5-5 5 5M5 20h14"
+              />
+            </svg>
+
           </div>
 
           <strong>
@@ -339,12 +433,36 @@
 
         <label class="photo-button">
 
-          🖼 Selecionar foto
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="4"
+              width="18"
+              height="16"
+              rx="2"
+            />
+
+            <circle
+              cx="8.5"
+              cy="9"
+              r="1.5"
+            />
+
+            <path
+              d="m5 17 4-4 3 3 2-2 5 5"
+            />
+          </svg>
+
+          Selecionar fotos
 
           <input
             id="attach-photo"
             type="file"
             accept="image/*"
+            multiple
             hidden
           >
 
@@ -359,8 +477,6 @@
       </section>
 
 
-      <!-- TEXTO -->
-
       <section
         id="tab-text"
         class="tab-panel"
@@ -369,11 +485,15 @@
         <div class="section-header">
 
           <div>
-            <h2>Texto</h2>
+
+            <h2>
+              Texto
+            </h2>
 
             <p>
               Envie textos, links ou códigos
             </p>
+
           </div>
 
         </div>
@@ -395,6 +515,7 @@
           <button
             id="btn-send-text"
             class="send-text-button"
+            aria-label="Enviar texto"
           >
             ➤
           </button>
@@ -404,8 +525,6 @@
       </section>
 
 
-      <!-- ÁUDIO -->
-
       <section
         id="tab-audio"
         class="tab-panel"
@@ -414,11 +533,15 @@
         <div class="section-header">
 
           <div>
-            <h2>Áudio</h2>
+
+            <h2>
+              Áudio
+            </h2>
 
             <p>
               Grave agora ou importe um áudio
             </p>
+
           </div>
 
         </div>
@@ -434,12 +557,34 @@
 
           <label class="audio-import-button">
 
-            Importar áudio
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="M9 18V5l10-2v13"
+              />
+
+              <circle
+                cx="6"
+                cy="18"
+                r="3"
+              />
+
+              <circle
+                cx="16"
+                cy="16"
+                r="3"
+              />
+            </svg>
+
+            Importar áudios
 
             <input
               id="attach-audio"
               type="file"
               accept="audio/*"
+              multiple
               hidden
             >
 
@@ -472,10 +617,6 @@
 </div>
 
 
-<!-- ========================= -->
-<!-- MODAL DE ARQUIVO -->
-<!-- ========================= -->
-
 <div
   id="modal-confirm"
   class="modal hidden"
@@ -492,7 +633,6 @@
     </h3>
 
     <p id="modal-text"></p>
-
 
     <div class="modal-actions">
 
@@ -516,8 +656,6 @@
 
 </div>
 
-
-<!-- FEEDBACK -->
 
 <div
   id="toast"
