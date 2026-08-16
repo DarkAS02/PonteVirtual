@@ -1,6 +1,6 @@
 const express = require('express');
 const { createServer } = require('http');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const path = require('path');
 
 const app = express();
@@ -9,78 +9,199 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.static(path.join(__dirname, 'Public')));
 
-// Map de salas: roomId -> { clients: Set, timer: Timeout }
 const rooms = new Map();
 
+function safeSend(client, data) {
+  if (client && client.readyState === WebSocket.OPEN) {
+    client.send(JSON.stringify(data));
+  }
+}
+
+function destroyRoom(roomId, closeSockets = false) {
+  const room = rooms.get(roomId);
+
+  if (!room) return;
+
+  clearTimeout(room.timer);
+
+  if (closeSockets) {
+    room.clients.forEach((client) => {
+      try {
+        client.close(1000, 'Sessão encerrada');
+      } catch {}
+    });
+  }
+
+  rooms.delete(roomId);
+}
+
+function cleanupOwnerPendingRooms(owner, keepRoomId = null) {
+  for (const [roomId, room] of rooms.entries()) {
+    if (
+      room.owner === owner &&
+      !room.paired &&
+      roomId !== keepRoomId
+    ) {
+      destroyRoom(roomId);
+    }
+  }
+}
+
+function heartbeat() {
+  this.isAlive = true;
+}
+
 wss.on('connection', (ws) => {
-  let currentRoom = null;
+  ws.activeRoom = null;
+  ws.isAlive = true;
+
+  ws.on('pong', heartbeat);
 
   ws.on('message', (raw) => {
+    let data;
+
     try {
-      const data = JSON.parse(raw);
-
-      if (data.type === 'create_room') {
-        currentRoom = data.roomId;
-        
-        // Cria sala com expiração automática de 65s (margem de rede)
-        const expireTimer = setTimeout(() => {
-          if (rooms.has(currentRoom) && rooms.get(currentRoom).clients.size < 2) {
-            rooms.delete(currentRoom);
-          }
-        }, 65000);
-
-        rooms.set(currentRoom, { clients: new Set([ws]), timer: expireTimer });
-        return;
-      }
-
-      if (data.type === 'join_room') {
-        currentRoom = data.roomId;
-        const room = rooms.get(currentRoom);
-
-        // Se a sala não existe ou expirou
-        if (!room) {
-          ws.send(JSON.stringify({ type: 'error', message: 'QR Code expirado ou inválido.' }));
-          return;
-        }
-
-        // Cancela o timer de expiração pois o pareamento ocorreu
-        clearTimeout(room.timer);
-        room.clients.add(ws);
-
-        // Notifica ambos que a conexão foi firmada
-        room.clients.forEach((client) => {
-          client.send(JSON.stringify({ type: 'connected' }));
-        });
-        return;
-      }
-
-      // Repasse de dados (Texto, Código, Ofertas de Arquivo)
-      if (currentRoom && rooms.has(currentRoom)) {
-        rooms.get(currentRoom).clients.forEach((client) => {
-          if (client !== ws && client.readyState === ws.OPEN) {
-            client.send(JSON.stringify(data));
-          }
-        });
-      }
-    } catch (e) {
-      console.error('Falha ao processar pacote:', e);
+      data = JSON.parse(raw.toString());
+    } catch {
+      return;
     }
+
+    if (data.type === 'create_room') {
+      const roomId = data.roomId;
+
+      if (!roomId) return;
+
+      cleanupOwnerPendingRooms(ws);
+
+      const timer = setTimeout(() => {
+        const room = rooms.get(roomId);
+
+        if (room && !room.paired) {
+          rooms.delete(roomId);
+        }
+      }, 70000);
+
+      rooms.set(roomId, {
+        owner: ws,
+        clients: new Set([ws]),
+        paired: false,
+        timer
+      });
+
+      return;
+    }
+
+    if (data.type === 'join_room') {
+      const roomId = data.roomId;
+      const room = rooms.get(roomId);
+
+      if (!room || room.paired) {
+        safeSend(ws, {
+          type: 'error',
+          message: 'QR Code expirado ou inválido.'
+        });
+
+        return;
+      }
+
+      clearTimeout(room.timer);
+
+      room.clients.add(ws);
+      room.paired = true;
+
+      room.owner.activeRoom = roomId;
+      ws.activeRoom = roomId;
+
+      cleanupOwnerPendingRooms(
+        room.owner,
+        roomId
+      );
+
+      room.clients.forEach((client) => {
+        safeSend(client, {
+          type: 'connected',
+          roomId
+        });
+      });
+
+      return;
+    }
+
+    const roomId = ws.activeRoom;
+
+    if (!roomId) return;
+
+    const room = rooms.get(roomId);
+
+    if (!room || !room.paired) return;
+
+    if (data.type === 'end_session') {
+      room.clients.forEach((client) => {
+        safeSend(client, {
+          type: 'session_ended'
+        });
+      });
+
+      setTimeout(() => {
+        destroyRoom(roomId, true);
+      }, 80);
+
+      return;
+    }
+
+    room.clients.forEach((client) => {
+      if (client !== ws) {
+        safeSend(client, data);
+      }
+    });
   });
 
   ws.on('close', () => {
-    if (currentRoom && rooms.has(currentRoom)) {
-      const room = rooms.get(currentRoom);
-      clearTimeout(room.timer);
-      room.clients.delete(ws);
+    const roomId = ws.activeRoom;
 
-      // Notifica o outro lado e destrói a sala imediatamente
+    if (
+      roomId &&
+      rooms.has(roomId)
+    ) {
+      const room = rooms.get(roomId);
+
       room.clients.forEach((client) => {
-        client.send(JSON.stringify({ type: 'peer_disconnected' }));
+        if (client !== ws) {
+          safeSend(client, {
+            type: 'peer_disconnected'
+          });
+        }
       });
-      rooms.delete(currentRoom);
+
+      destroyRoom(roomId);
     }
+
+    cleanupOwnerPendingRooms(ws);
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Bridge ativo na porta ${PORT}`));
+const heartbeatInterval =
+  setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        return ws.terminate();
+      }
+
+      ws.isAlive = false;
+
+      ws.ping();
+    });
+  }, 6000);
+
+wss.on('close', () => {
+  clearInterval(heartbeatInterval);
+});
+
+const PORT =
+  process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log(
+    `Ponte Virtual ativa na porta ${PORT}`
+  );
+});
