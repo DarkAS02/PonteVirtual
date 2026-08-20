@@ -1447,6 +1447,34 @@ async function stopScanner() {
 
 }
 
+// =========================
+// NOTIFICAÇÕES DAS ABAS
+// =========================
+
+function notifyTab(tabName) {
+
+  const tab = document.querySelector(
+    `.tab[data-tab="${tabName}"]`
+  );
+
+  if (!tab) return;
+
+  // Se já estiver vendo a aba,
+  // não mostra bolinha.
+  if (tab.classList.contains('active')) {
+    return;
+  }
+
+  tab.classList.add('has-notification');
+}
+
+
+function clearTabNotification(tab) {
+
+  if (!tab) return;
+
+  tab.classList.remove('has-notification');
+}
 
 // =========================
 // ABAS
@@ -1532,21 +1560,20 @@ textInput
     'keydown',
     (event) => {
 
-      if (
-        event.key ===
-          'Enter' &&
-        !event.shiftKey
-      ) {
+    if (
+  data.type ===
+  'message'
+) {
 
-        event.preventDefault();
-
-        sendText();
-
-      }
-
-    }
+  addTextMessage(
+    data.content,
+    'other'
   );
 
+  notifyTab('text');
+
+  return;
+}
 
 function sendText() {
 
