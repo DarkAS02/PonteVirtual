@@ -1485,21 +1485,29 @@ tabs.forEach(
         );
 
 
-        tab
-          .classList
-          .add(
-            'active'
-          );
+       tab
+  .classList
+  .add(
+    'active'
+  );
 
 
-        document
-          .getElementById(
-            `tab-${tab.dataset.tab}`
-          )
-          .classList
-          .add(
-            'active'
-          );
+// Remove a bolinha verde
+// quando abrir a aba
+
+clearTabNotification(
+  tab
+);
+
+
+document
+  .getElementById(
+    `tab-${tab.dataset.tab}`
+  )
+  .classList
+  .add(
+    'active'
+  );
 
       }
     );
