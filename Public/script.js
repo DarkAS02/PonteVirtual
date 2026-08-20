@@ -7,18 +7,15 @@ const WS_URL =
     ? `wss://${window.location.host}`
     : `ws://${window.location.host}`;
 
-
 const isMobile =
   /Android|iPhone|iPad|iPod/i.test(
     navigator.userAgent
   );
 
-
 const params =
   new URLSearchParams(
     window.location.search
   );
-
 
 const targetRoom =
   params.get('room');
@@ -32,57 +29,33 @@ let socket = null;
 
 let currentRoomId = null;
 
-let qrCreator =
-  null;
+let qrCreator = null;
 
+let pcQrInterval = null;
+let pcTimerInterval = null;
 
-let pcQrInterval =
-  null;
-
-let pcTimerInterval =
-  null;
-
-
-let mobileQrInterval =
-  null;
-
-let mobileTimerInterval =
-  null;
-
+let mobileQrInterval = null;
+let mobileTimerInterval = null;
 
 let scanner = null;
+let scanningLocked = false;
 
-let scanningLocked =
-  false;
+let mediaRecorder = null;
+let recordingStream = null;
+let audioChunks = [];
 
-
-let mediaRecorder =
-  null;
-
-let recordingStream =
-  null;
-
-let audioChunks =
-  [];
+let toastTimer = null;
 
 
-let toastTimer =
-  null;
+// Arquivos recebidos ficam em fila
+
+const incomingQueue = [];
+
+let currentIncoming = null;
 
 
-// Arquivos recebidos
-// ficam em fila
-
-const incomingQueue =
-  [];
-
-let currentIncoming =
-  null;
-
-
-// Arquivos enviados
-// permanecem na memória
-// durante a sessão
+// Arquivos enviados permanecem
+// na memória durante a sessão
 
 const sentTransfers =
   new Map();
@@ -103,222 +76,185 @@ const screenConnect =
     'screen-connect'
   );
 
-
 const screenApp =
   document.getElementById(
     'screen-app'
   );
-
 
 const pcView =
   document.getElementById(
     'pc-view'
   );
 
-
 const mobileView =
   document.getElementById(
     'mobile-view'
   );
-
 
 const scannerView =
   document.getElementById(
     'scanner-view'
   );
 
-
 const mobileQrView =
   document.getElementById(
     'mobile-qr-view'
   );
-
 
 const joiningView =
   document.getElementById(
     'joining-view'
   );
 
-
 const qrcodeContainer =
   document.getElementById(
     'qrcode'
   );
-
 
 const qrProgress =
   document.getElementById(
     'qr-progress'
   );
 
-
 const timerText =
   document.getElementById(
     'timer-text'
   );
-
 
 const mobileQrcode =
   document.getElementById(
     'mobile-qrcode'
   );
 
-
 const mobileQrProgress =
   document.getElementById(
     'mobile-qr-progress'
   );
-
 
 const mobileTimerText =
   document.getElementById(
     'mobile-timer-text'
   );
 
-
 const btnOpenScanner =
   document.getElementById(
     'btn-open-scanner'
   );
-
 
 const btnCloseScanner =
   document.getElementById(
     'btn-close-scanner'
   );
 
-
 const btnGenerateQR =
   document.getElementById(
     'btn-generate-qr'
   );
-
 
 const btnBackMobileQR =
   document.getElementById(
     'btn-back-mobile-qr'
   );
 
-
 const btnDestroy =
   document.getElementById(
     'btn-destroy'
   );
-
 
 const tabs =
   document.querySelectorAll(
     '.tab'
   );
 
-
 const panels =
   document.querySelectorAll(
     '.tab-panel'
   );
-
 
 const dropZone =
   document.getElementById(
     'drop-zone'
   );
 
-
 const selectButton =
   document.querySelector(
     '.select-button'
   );
-
 
 const attachFile =
   document.getElementById(
     'attach-file'
   );
 
-
 const attachPhoto =
   document.getElementById(
     'attach-photo'
   );
-
 
 const attachAudio =
   document.getElementById(
     'attach-audio'
   );
 
-
 const mediaFeed =
   document.getElementById(
     'media-feed'
   );
-
 
 const textFeed =
   document.getElementById(
     'text-feed'
   );
 
-
 const audioFeed =
   document.getElementById(
     'audio-feed'
   );
-
 
 const textInput =
   document.getElementById(
     'text-input'
   );
 
-
 const btnSendText =
   document.getElementById(
     'btn-send-text'
   );
-
 
 const btnRecord =
   document.getElementById(
     'btn-record'
   );
 
-
 const recordIcon =
   document.getElementById(
     'record-icon'
   );
-
 
 const recordText =
   document.getElementById(
     'record-text'
   );
 
-
 const modal =
   document.getElementById(
     'modal-confirm'
   );
-
 
 const modalText =
   document.getElementById(
     'modal-text'
   );
 
-
 const btnModalAccept =
   document.getElementById(
     'btn-modal-accept'
   );
 
-
 const btnModalReject =
   document.getElementById(
     'btn-modal-reject'
   );
-
 
 const toast =
   document.getElementById(
@@ -344,29 +280,18 @@ function randomId(
       `${prefix}-` +
       crypto
         .randomUUID()
-        .replaceAll(
-          '-',
-          ''
-        )
-        .substring(
-          0,
-          16
-        )
+        .replaceAll('-', '')
+        .substring(0, 16)
     );
 
   }
 
-
   return (
     `${prefix}-` +
-    Date.now()
-      .toString(36) +
+    Date.now().toString(36) +
     Math.random()
       .toString(36)
-      .substring(
-        2,
-        9
-      )
+      .substring(2, 9)
   );
 
 }
@@ -414,17 +339,12 @@ function connectSocket() {
           joiningView
         );
 
-
         socket.send(
           JSON.stringify({
-            type:
-              'join_room',
-
-            roomId:
-              targetRoom
+            type: 'join_room',
+            roomId: targetRoom
           })
         );
-
 
         return;
 
@@ -448,7 +368,6 @@ function connectSocket() {
         showConnectView(
           pcView
         );
-
 
         startPcQrCycle();
 
@@ -486,9 +405,6 @@ function connectSocket() {
         'room_created'
       ) {
 
-        // Ignora confirmação
-        // de QR antigo
-
         if (
           data.roomId !==
           currentRoomId
@@ -498,11 +414,9 @@ function connectSocket() {
 
         }
 
-
         drawConfirmedQr(
           data.roomId
         );
-
 
         return;
 
@@ -524,11 +438,9 @@ function connectSocket() {
 
         activateApp();
 
-
         showToast(
           'Dispositivo conectado ✓'
         );
-
 
         return;
 
@@ -536,7 +448,7 @@ function connectSocket() {
 
 
       // =========================
-      // TEXTO
+      // TEXTO RECEBIDO
       // =========================
 
       if (
@@ -549,6 +461,12 @@ function connectSocket() {
           'other'
         );
 
+        // Avisa que chegou
+        // conteúdo na aba Texto
+
+        notifyTab(
+          'text'
+        );
 
         return;
 
@@ -556,7 +474,7 @@ function connectSocket() {
 
 
       // =========================
-      // ARQUIVO
+      // ARQUIVO RECEBIDO
       // =========================
 
       if (
@@ -568,6 +486,31 @@ function connectSocket() {
           data
         );
 
+
+        // Áudio vai para
+        // a aba Áudio
+
+        if (
+          data.category ===
+          'audio'
+        ) {
+
+          notifyTab(
+            'audio'
+          );
+
+        }
+
+        // Fotos, vídeos e arquivos
+        // vão para Mídia
+
+        else {
+
+          notifyTab(
+            'media'
+          );
+
+        }
 
         return;
 
@@ -587,7 +530,6 @@ function connectSocket() {
           data.transferId,
           data.status
         );
-
 
         return;
 
@@ -609,12 +551,10 @@ function connectSocket() {
           'Sessão encerrada'
         );
 
-
         setTimeout(
           goHome,
           350
         );
-
 
         return;
 
@@ -633,7 +573,6 @@ function connectSocket() {
         showToast(
           data.message
         );
-
 
         setTimeout(
           goHome,
@@ -691,21 +630,17 @@ function hideConnectViews() {
     .classList
     .add('hidden');
 
-
   mobileView
     .classList
     .add('hidden');
-
 
   scannerView
     .classList
     .add('hidden');
 
-
   mobileQrView
     .classList
     .add('hidden');
-
 
   joiningView
     .classList
@@ -719,7 +654,6 @@ function showConnectView(
 ) {
 
   hideConnectViews();
-
 
   view
     .classList
@@ -737,7 +671,6 @@ function activateApp() {
     .add(
       'hidden'
     );
-
 
   screenApp
     .classList
@@ -775,11 +708,8 @@ function requestNewRoom(
 
   socket.send(
     JSON.stringify({
-      type:
-        'create_room',
-
-      roomId:
-        currentRoomId
+      type: 'create_room',
+      roomId: currentRoomId
     })
   );
 
@@ -801,9 +731,7 @@ function drawConfirmedQr(
     `?room=${roomId}`;
 
 
-  // =========================
   // QR DO PC
-  // =========================
 
   if (
     qrCreator === 'pc'
@@ -817,14 +745,11 @@ function drawConfirmedQr(
       qrcodeContainer,
       {
 
-        text:
-          joinUrl,
+        text: joinUrl,
 
-        width:
-          170,
+        width: 170,
 
-        height:
-          170,
+        height: 170,
 
         colorDark:
           '#04121a',
@@ -845,15 +770,12 @@ function drawConfirmedQr(
       'pc'
     );
 
-
     return;
 
   }
 
 
-  // =========================
   // QR DO CELULAR
-  // =========================
 
   if (
     qrCreator ===
@@ -868,14 +790,11 @@ function drawConfirmedQr(
       mobileQrcode,
       {
 
-        text:
-          joinUrl,
+        text: joinUrl,
 
-        width:
-          170,
+        width: 170,
 
-        height:
-          170,
+        height: 170,
 
         colorDark:
           '#04121a',
@@ -1151,8 +1070,7 @@ btnOpenScanner
 
 
           {
-            fps:
-              18,
+            fps: 18,
 
             qrbox:
               (
@@ -1171,11 +1089,8 @@ btnOpenScanner
 
 
                 return {
-                  width:
-                    size,
-
-                  height:
-                    size
+                  width: size,
+                  height: size
                 };
 
               },
@@ -1377,14 +1292,12 @@ async function improveRunningCamera() {
     ) {
 
       constraints.width = {
-        ideal:
-          1920
+        ideal: 1920
       };
 
 
       constraints.height = {
-        ideal:
-          1080
+        ideal: 1080
       };
 
     }
@@ -1442,8 +1355,64 @@ async function stopScanner() {
   catch {}
 
 
-  scanner =
-    null;
+  scanner = null;
+
+}
+
+
+// =========================
+// NOTIFICAÇÕES DAS ABAS
+// =========================
+
+function notifyTab(
+  tabName
+) {
+
+  const tab =
+    document.querySelector(
+      `.tab[data-tab="${tabName}"]`
+    );
+
+
+  if (!tab) {
+    return;
+  }
+
+
+  // Se a pessoa já estiver
+  // olhando essa aba,
+  // não mostra notificação.
+
+  if (
+    tab.classList.contains(
+      'active'
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  tab.classList.add(
+    'has-notification'
+  );
+
+}
+
+
+function clearTabNotification(
+  tab
+) {
+
+  if (!tab) {
+    return;
+  }
+
+
+  tab.classList.remove(
+    'has-notification'
+  );
 
 }
 
@@ -1490,6 +1459,14 @@ tabs.forEach(
           .add(
             'active'
           );
+
+
+        // Ao abrir a aba,
+        // remove a bolinha verde.
+
+        clearTabNotification(
+          tab
+        );
 
 
         document
@@ -1567,8 +1544,7 @@ function sendText() {
   socket.send(
     JSON.stringify({
 
-      type:
-        'message',
+      type: 'message',
 
       content,
 
@@ -2818,8 +2794,7 @@ btnRecord.addEventListener(
           .mediaDevices
           .getUserMedia({
 
-            audio:
-              true
+            audio: true
 
           });
 
@@ -2864,8 +2839,7 @@ btnRecord.addEventListener(
               audioChunks,
               {
 
-                type:
-                  mime
+                type: mime
 
               }
             );
@@ -2879,8 +2853,7 @@ btnRecord.addEventListener(
 
               {
 
-                type:
-                  mime
+                type: mime
 
               }
             );
