@@ -1447,34 +1447,6 @@ async function stopScanner() {
 
 }
 
-// =========================
-// NOTIFICAÇÕES DAS ABAS
-// =========================
-
-function notifyTab(tabName) {
-
-  const tab = document.querySelector(
-    `.tab[data-tab="${tabName}"]`
-  );
-
-  if (!tab) return;
-
-  // Se já estiver vendo a aba,
-  // não mostra bolinha.
-  if (tab.classList.contains('active')) {
-    return;
-  }
-
-  tab.classList.add('has-notification');
-}
-
-
-function clearTabNotification(tab) {
-
-  if (!tab) return;
-
-  tab.classList.remove('has-notification');
-}
 
 // =========================
 // ABAS
@@ -1513,29 +1485,21 @@ tabs.forEach(
         );
 
 
-       tab
-  .classList
-  .add(
-    'active'
-  );
+        tab
+          .classList
+          .add(
+            'active'
+          );
 
 
-// Remove a bolinha verde
-// quando abrir a aba
-
-clearTabNotification(
-  tab
-);
-
-
-document
-  .getElementById(
-    `tab-${tab.dataset.tab}`
-  )
-  .classList
-  .add(
-    'active'
-  );
+        document
+          .getElementById(
+            `tab-${tab.dataset.tab}`
+          )
+          .classList
+          .add(
+            'active'
+          );
 
       }
     );
@@ -1560,20 +1524,21 @@ textInput
     'keydown',
     (event) => {
 
-    if (
-  data.type ===
-  'message'
-) {
+      if (
+        event.key ===
+          'Enter' &&
+        !event.shiftKey
+      ) {
 
-  addTextMessage(
-    data.content,
-    'other'
+        event.preventDefault();
+
+        sendText();
+
+      }
+
+    }
   );
 
-  notifyTab('text');
-
-  return;
-}
 
 function sendText() {
 
