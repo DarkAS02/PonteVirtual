@@ -20,6 +20,93 @@ app.use(
 
 const rooms = new Map();
 
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const raw = Array.isArray(forwarded)
+    ? forwarded[0]
+    : (forwarded || req.socket.remoteAddress || '').split(',')[0];
+
+  return String(raw).trim().replace(/^::ffff:/, '');
+}
+
+function getNearbyDevices(forClient) {
+  const devices = [];
+
+  wss.clients.forEach((client) => {
+    if (
+      client !== forClient &&
+      client.readyState === WebSocket.OPEN &&
+      client.available &&
+      !client.activeRoom &&
+      client.deviceId &&
+      client.networkKey === forClient.networkKey
+    ) {
+      devices.push({
+        deviceId: client.deviceId,
+        deviceName: client.deviceName,
+        deviceType: client.deviceType
+      });
+    }
+  });
+
+  return devices;
+}
+
+function sendNearbyDevices(client) {
+  safeSend(client, {
+    type: 'nearby_devices',
+    devices: getNearbyDevices(client)
+  });
+}
+
+function broadcastNearby(networkKey) {
+  wss.clients.forEach((client) => {
+    if (
+      client.readyState === WebSocket.OPEN &&
+      client.networkKey === networkKey
+    ) {
+      sendNearbyDevices(client);
+    }
+  });
+}
+
+function findDevice(deviceId) {
+  for (const client of wss.clients) {
+    if (client.deviceId === deviceId) return client;
+  }
+
+  return null;
+}
+
+function createDirectRoom(first, second) {
+  cleanupOwnerPendingRooms(first);
+  cleanupOwnerPendingRooms(second);
+
+  const roomId =
+    `direct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+
+  rooms.set(roomId, {
+    owner: first,
+    clients: new Set([first, second]),
+    paired: true,
+    timer: null
+  });
+
+  first.activeRoom = roomId;
+  second.activeRoom = roomId;
+  first.available = false;
+  second.available = false;
+
+  safeSend(first, { type: 'connected', roomId });
+  safeSend(second, { type: 'connected', roomId });
+
+  broadcastNearby(first.networkKey);
+  if (second.networkKey !== first.networkKey) {
+    broadcastNearby(second.networkKey);
+  }
+}
+
+
 
 // =========================
 // ENVIAR COM SEGURANÇA
@@ -136,11 +223,15 @@ function heartbeat() {
 
 wss.on(
   'connection',
-  (ws) => {
+  (ws, req) => {
 
     ws.activeRoom = null;
-
     ws.isAlive = true;
+    ws.deviceId = null;
+    ws.deviceName = null;
+    ws.deviceType = null;
+    ws.available = false;
+    ws.networkKey = getClientIp(req);
 
 
     ws.on(
@@ -169,6 +260,79 @@ wss.on(
 
         }
 
+
+        // =========================
+        // DISPOSITIVOS PRÓXIMOS
+        // =========================
+
+        if (data.type === 'register_device') {
+          ws.deviceId = String(data.deviceId || '').slice(0, 80);
+          ws.deviceName = String(data.deviceName || 'Dispositivo').slice(0, 80);
+          ws.deviceType = String(data.deviceType || 'device').slice(0, 30);
+          ws.available = data.available !== false && !ws.activeRoom;
+
+          broadcastNearby(ws.networkKey);
+          return;
+        }
+
+        if (data.type === 'get_nearby') {
+          sendNearbyDevices(ws);
+          return;
+        }
+
+        if (data.type === 'connection_request') {
+          const target = findDevice(data.targetId);
+
+          if (
+            !target ||
+            target === ws ||
+            !ws.available ||
+            !target.available ||
+            ws.activeRoom ||
+            target.activeRoom ||
+            target.networkKey !== ws.networkKey
+          ) {
+            safeSend(ws, { type: 'connection_unavailable' });
+            sendNearbyDevices(ws);
+            return;
+          }
+
+          safeSend(target, {
+            type: 'connection_request',
+            requesterId: ws.deviceId,
+            requesterName: ws.deviceName
+          });
+
+          return;
+        }
+
+        if (data.type === 'connection_response') {
+          const requester = findDevice(data.requesterId);
+
+          if (!requester) return;
+
+          if (!data.accepted) {
+            safeSend(requester, {
+              type: 'connection_rejected',
+              deviceName: ws.deviceName
+            });
+            return;
+          }
+
+          if (
+            !requester.available ||
+            !ws.available ||
+            requester.activeRoom ||
+            ws.activeRoom ||
+            requester.networkKey !== ws.networkKey
+          ) {
+            safeSend(requester, { type: 'connection_unavailable' });
+            return;
+          }
+
+          createDirectRoom(requester, ws);
+          return;
+        }
 
         // =========================
         // CRIAR SALA
@@ -332,6 +496,15 @@ wss.on(
 
           ws.activeRoom =
             roomId;
+
+
+          room.owner.available = false;
+          ws.available = false;
+
+          broadcastNearby(room.owner.networkKey);
+          if (ws.networkKey !== room.owner.networkKey) {
+            broadcastNearby(ws.networkKey);
+          }
 
 
           cleanupOwnerPendingRooms(
@@ -525,6 +698,8 @@ wss.on(
         cleanupOwnerPendingRooms(
           ws
         );
+
+        broadcastNearby(ws.networkKey);
 
       }
     );
