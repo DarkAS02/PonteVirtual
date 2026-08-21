@@ -409,35 +409,88 @@ function createTransferId() {
 }
 
 
-const deviceIdentity = (() => {
-  const id = randomId('dev');
-  const ua = navigator.userAgent;
+function getPersistentDeviceId() {
+  const storageKey = 'ponte-device-id';
+  let id = localStorage.getItem(storageKey);
+
+  if (!id) {
+    id = randomId('dev');
+    localStorage.setItem(storageKey, id);
+  }
+
+  return id;
+}
+
+function detectDeviceInfo() {
+  const ua = navigator.userAgent || '';
   let deviceType = 'device';
-  let baseName = 'Dispositivo';
+  let deviceName = 'Dispositivo';
 
   if (/Android/i.test(ua)) {
     deviceType = 'phone';
-    baseName = 'Android';
-  } else if (/iPhone|iPad|iPod/i.test(ua)) {
+
+    const samsungModel = ua.match(/\b(SM-[A-Z0-9-]+)\b/i);
+    const androidModel = ua.match(/Android[^;]*;\s*([^;()]+?)(?:\s+Build\/|;|\))/i);
+
+    if (samsungModel && samsungModel[1]) {
+      deviceName = `Samsung ${samsungModel[1].toUpperCase()}`;
+    } else if (androidModel && androidModel[1]) {
+      deviceName = androidModel[1].trim() || 'Android';
+    } else {
+      deviceName = 'Android';
+    }
+  } else if (/iPhone/i.test(ua)) {
     deviceType = 'phone';
-    baseName = 'iPhone/iPad';
+    deviceName = 'iPhone';
+  } else if (/iPad/i.test(ua)) {
+    deviceType = 'phone';
+    deviceName = 'iPad';
   } else if (/Windows/i.test(ua)) {
     deviceType = 'computer';
-    baseName = 'Windows PC';
+    deviceName = 'Windows PC';
   } else if (/Macintosh|Mac OS X/i.test(ua)) {
     deviceType = 'computer';
-    baseName = 'Mac';
+    deviceName = 'Mac';
   } else if (/Linux/i.test(ua)) {
     deviceType = 'computer';
-    baseName = 'Linux PC';
+    deviceName = 'Linux PC';
   }
 
   return {
-    deviceId: id,
+    deviceId: getPersistentDeviceId(),
     deviceType,
-    deviceName: `${baseName} • ${id.slice(-4).toUpperCase()}`
+    deviceName
   };
-})();
+}
+
+let deviceIdentity = detectDeviceInfo();
+
+async function enrichDeviceIdentity() {
+  try {
+    if (
+      navigator.userAgentData &&
+      typeof navigator.userAgentData.getHighEntropyValues === 'function'
+    ) {
+      const values = await navigator.userAgentData.getHighEntropyValues([
+        'model',
+        'platform'
+      ]);
+
+      if (values.model) {
+        const model = String(values.model).trim();
+
+        if (model) {
+          deviceIdentity.deviceName =
+            /^SM-/i.test(model)
+              ? `Samsung ${model.toUpperCase()}`
+              : model;
+        }
+      }
+    }
+  } catch {}
+
+  registerDevice();
+}
 
 const translations = {
   pt: {
@@ -489,7 +542,8 @@ const translations = {
     wantsConnect: 'quer se conectar a este dispositivo.',
     requestSent: 'Solicitação enviada',
     requestRejected: 'Solicitação recusada',
-    deviceUnavailable: 'O dispositivo não está mais disponível'
+    deviceUnavailable: 'O dispositivo não está mais disponível',
+    updating: 'Atualizando...'
   },
 
   en: {
@@ -541,7 +595,8 @@ const translations = {
     wantsConnect: 'wants to connect to this device.',
     requestSent: 'Request sent',
     requestRejected: 'Request rejected',
-    deviceUnavailable: 'The device is no longer available'
+    deviceUnavailable: 'The device is no longer available',
+    updating: 'Refreshing...'
   }
 };
 
@@ -639,6 +694,7 @@ function renderNearbyDevices(devices = []) {
 
 function openNearbyModal() {
   modalNearby.classList.remove('hidden');
+  btnRefreshNearby.disabled = false;
   renderNearbyDevices([]);
   requestNearbyDevices();
 }
@@ -663,6 +719,7 @@ function connectSocket() {
     () => {
 
       registerDevice();
+      enrichDeviceIdentity();
 
       // Entrou através
       // de um QR Code
@@ -3595,7 +3652,28 @@ languageOptions.forEach((option) => {
 
 btnNearbyDesktop.addEventListener('click', openNearbyModal);
 btnNearbyMobile.addEventListener('click', openNearbyModal);
-btnRefreshNearby.addEventListener('click', requestNearbyDevices);
+btnRefreshNearby.addEventListener('click', () => {
+  if (!socketReady()) return;
+
+  const label =
+    btnRefreshNearby.querySelector('[data-i18n="refresh"]');
+
+  btnRefreshNearby.disabled = true;
+
+  if (label) {
+    label.textContent = t('updating');
+  }
+
+  requestNearbyDevices();
+
+  setTimeout(() => {
+    btnRefreshNearby.disabled = false;
+
+    if (label) {
+      label.textContent = t('refresh');
+    }
+  }, 650);
+});
 btnCloseNearby.addEventListener('click', closeNearbyModal);
 
 btnAcceptConnection.addEventListener('click', () => {
