@@ -1078,7 +1078,9 @@ svg {
     bottom: calc(18px + env(safe-area-inset-bottom));
     font-size: 0.78rem;
   }
-  /* =========================
+}
+
+/* =========================
    NOTIFICAÇÕES DAS ABAS
 ========================= */
 
@@ -1117,6 +1119,8 @@ svg {
 @media (max-width: 600px) {
 
   .connection-status {
+    display: flex;
+
     font-size: 0;
 
     padding: 0;
@@ -1137,6 +1141,9 @@ svg {
     box-shadow:
       0 0 0 3px rgba(34, 197, 94, 0.12),
       0 0 8px rgba(34, 197, 94, 0.45);
+  }
+
+}
   }
 
 }
