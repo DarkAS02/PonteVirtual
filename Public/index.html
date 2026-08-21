@@ -39,6 +39,33 @@
     class="screen"
   >
 
+    <div class="connect-toolbar">
+      <button
+        id="btn-nearby-desktop"
+        class="toolbar-button nearby-desktop-button"
+        type="button"
+        aria-label="Dispositivos próximos"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="14" rx="2" />
+          <path d="M8 21h8M12 18v3M8 10a6 6 0 0 1 8 0M10 12a3 3 0 0 1 4 0" />
+        </svg>
+        <span data-i18n="nearby">Dispositivos próximos</span>
+      </button>
+
+      <button
+        id="btn-settings"
+        class="toolbar-button settings-button"
+        type="button"
+        aria-label="Configurações"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z" />
+        </svg>
+      </button>
+    </div>
+
     <div class="brand">
 
       <div class="brand-icon">
@@ -49,7 +76,7 @@
         <h1>Ponte Virtual</h1>
 
         <p>
-          Transferência temporária entre dispositivos
+          <span data-i18n="brandSubtitle">Transferência temporária entre dispositivos</span>
         </p>
       </div>
 
@@ -62,11 +89,11 @@
     >
 
       <h2>
-        Conectar celular
+        <span data-i18n="connectPhone">Conectar celular</span>
       </h2>
 
       <p class="muted">
-        Escaneie o QR Code com seu celular
+        <span data-i18n="scanWithPhone">Escaneie o QR Code com seu celular</span>
       </p>
 
       <div class="qr-box">
@@ -91,7 +118,7 @@
       </div>
 
       <p class="security-hint">
-        🔒 Sessão temporária e de uso único
+        <span data-i18n="temporarySession">🔒 Sessão temporária e de uso único</span>
       </p>
 
     </div>
@@ -103,11 +130,11 @@
     >
 
       <h2>
-        Conectar dispositivo
+        <span data-i18n="connectDevice">Conectar dispositivo</span>
       </h2>
 
       <p class="muted">
-        Escolha como deseja iniciar
+        <span data-i18n="chooseStart">Escolha como deseja iniciar</span>
       </p>
 
       <button
@@ -131,11 +158,11 @@
         <span>
 
           <strong>
-            Escanear QR Code
+            <span data-i18n="scanQr">Escanear QR Code</span>
           </strong>
 
           <small>
-            Conectar a outro dispositivo
+            <span data-i18n="connectAnother">Conectar a outro dispositivo</span>
           </small>
 
         </span>
@@ -188,15 +215,34 @@
         <span>
 
           <strong>
-            Gerar QR Code
+            <span data-i18n="generateQr">Gerar QR Code</span>
           </strong>
 
           <small>
-            Outro celular escaneia você
+            <span data-i18n="otherPhoneScans">Outro celular escaneia você</span>
           </small>
 
         </span>
 
+      </button>
+
+
+      <button
+        id="btn-nearby-mobile"
+        class="connect-action secondary"
+        type="button"
+      >
+        <span class="connect-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="14" rx="2" />
+            <path d="M8 21h8M12 18v3M8 10a6 6 0 0 1 8 0M10 12a3 3 0 0 1 4 0" />
+          </svg>
+        </span>
+
+        <span>
+          <strong data-i18n="nearby">Dispositivos próximos</strong>
+          <small data-i18n="nearbySubtitle">Conectar sem usar QR Code</small>
+        </span>
       </button>
 
     </div>
@@ -210,11 +256,11 @@
       <div class="scanner-title">
 
         <h2>
-          Escanear QR Code
+          <span data-i18n="scanQr">Escanear QR Code</span>
         </h2>
 
         <p>
-          Posicione o código dentro da área
+          <span data-i18n="positionQr">Posicione o código dentro da área</span>
         </p>
 
       </div>
@@ -225,7 +271,7 @@
         id="btn-close-scanner"
         class="back-button"
       >
-        ← Voltar
+        <span data-i18n="back">← Voltar</span>
       </button>
 
     </div>
@@ -237,11 +283,11 @@
     >
 
       <h2>
-        Seu QR Code
+        <span data-i18n="yourQr">Seu QR Code</span>
       </h2>
 
       <p class="muted">
-        Peça para o outro celular escanear
+        <span data-i18n="askOtherScan">Peça para o outro celular escanear</span>
       </p>
 
       <div class="qr-box">
@@ -269,7 +315,7 @@
         id="btn-back-mobile-qr"
         class="back-button"
       >
-        ← Voltar
+        <span data-i18n="back">← Voltar</span>
       </button>
 
     </div>
@@ -283,11 +329,11 @@
       <div class="loading-circle"></div>
 
       <h2>
-        Conectando...
+        <span data-i18n="connecting">Conectando...</span>
       </h2>
 
       <p class="muted">
-        Validando a sessão
+        <span data-i18n="validating">Validando a sessão</span>
       </p>
 
     </div>
@@ -321,7 +367,7 @@
 
           <span class="status-dot"></span>
 
-          Conectado
+          <span data-i18n="connected">Conectado</span>
 
         </div>
 
@@ -329,7 +375,7 @@
           id="btn-destroy"
           class="disconnect-button"
         >
-          Desconectar
+          <span data-i18n="disconnect">Desconectar</span>
         </button>
 
       </div>
@@ -340,17 +386,17 @@
     <nav class="tabs">
 
   <button class="tab active" data-tab="media">
-    <span>Mídia</span>
+    <span data-i18n="media">Mídia</span>
     <span class="tab-notification"></span>
   </button>
 
   <button class="tab" data-tab="text">
-    <span>Texto</span>
+    <span data-i18n="text">Texto</span>
     <span class="tab-notification"></span>
   </button>
 
   <button class="tab" data-tab="audio">
-    <span>Áudio</span>
+    <span data-i18n="audio">Áudio</span>
     <span class="tab-notification"></span>
   </button>
 
@@ -370,11 +416,11 @@
           <div>
 
             <h2>
-              Arquivos e fotos
+              <span data-i18n="filesPhotos">Arquivos e fotos</span>
             </h2>
 
             <p>
-              Envie arquivos para o dispositivo conectado
+              <span data-i18n="sendFilesConnected">Envie arquivos para o dispositivo conectado</span>
             </p>
 
           </div>
@@ -401,18 +447,18 @@
           </div>
 
           <strong>
-            Solte arquivos aqui
+            <span data-i18n="dropFiles">Solte arquivos aqui</span>
           </strong>
 
           <span>
-            ou selecione manualmente
+            <span data-i18n="orSelect">ou selecione manualmente</span>
           </span>
 
           <button
             type="button"
             class="select-button"
           >
-            Selecionar arquivos
+            <span data-i18n="selectFiles">Selecionar arquivos</span>
           </button>
 
           <input
@@ -450,7 +496,7 @@
             />
           </svg>
 
-          Selecionar fotos
+          <span data-i18n="selectPhotos">Selecionar fotos</span>
 
           <input
             id="attach-photo"
@@ -481,11 +527,11 @@
           <div>
 
             <h2>
-              Texto
+              <span data-i18n="text">Texto</span>
             </h2>
 
             <p>
-              Envie textos, links ou códigos
+              <span data-i18n="sendTexts">Envie textos, links ou códigos</span>
             </p>
 
           </div>
@@ -504,6 +550,7 @@
           <textarea
             id="text-input"
             placeholder="Digite ou cole um texto..."
+            data-i18n-placeholder="textPlaceholder"
           ></textarea>
 
           <button
@@ -529,11 +576,11 @@
           <div>
 
             <h2>
-              Áudio
+              <span data-i18n="audio">Áudio</span>
             </h2>
 
             <p>
-              Grave agora ou importe um áudio
+              <span data-i18n="recordOrImport">Grave agora ou importe um áudio</span>
             </p>
 
           </div>
@@ -572,7 +619,7 @@
               />
             </svg>
 
-            Importar áudios
+            <span data-i18n="importAudios">Importar áudios</span>
 
             <input
               id="attach-audio"
@@ -595,7 +642,7 @@
             </span>
 
             <span id="record-text">
-              Gravar áudio
+              <span data-i18n="recordAudio">Gravar áudio</span>
             </span>
 
           </button>
@@ -611,6 +658,61 @@
 </div>
 
 
+<div id="modal-settings" class="modal hidden">
+  <div class="modal-card settings-modal-card">
+    <div class="modal-header-row">
+      <div>
+        <h3 data-i18n="settings">Configurações</h3>
+        <p data-i18n="languageDescription">Escolha o idioma da interface</p>
+      </div>
+      <button id="btn-close-settings" class="modal-close-button" type="button" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="language-options">
+      <button class="language-option" type="button" data-language="pt">
+        <span>Português</span><span class="language-check">✓</span>
+      </button>
+      <button class="language-option" type="button" data-language="en">
+        <span>English</span><span class="language-check">✓</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div id="modal-nearby" class="modal hidden">
+  <div class="modal-card nearby-modal-card">
+    <div class="modal-header-row">
+      <div>
+        <h3 data-i18n="nearby">Dispositivos próximos</h3>
+        <p data-i18n="nearbyDescription">Dispositivos disponíveis nesta rede</p>
+      </div>
+      <button id="btn-close-nearby" class="modal-close-button" type="button" aria-label="Fechar">×</button>
+    </div>
+
+    <div id="nearby-list" class="nearby-list"></div>
+
+    <button id="btn-refresh-nearby" class="back-button nearby-refresh-button" type="button">
+      <span data-i18n="refresh">↻ Atualizar</span>
+    </button>
+  </div>
+</div>
+
+
+<div id="modal-connection-request" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-icon">↔</div>
+    <h3 data-i18n="connectionRequest">Solicitação de conexão</h3>
+    <p id="connection-request-text"></p>
+
+    <div class="modal-actions">
+      <button id="btn-reject-connection" class="modal-reject" type="button" data-i18n="reject">Recusar</button>
+      <button id="btn-accept-connection" class="modal-accept" type="button" data-i18n="accept">Aceitar</button>
+    </div>
+  </div>
+</div>
+
+
 <div
   id="modal-confirm"
   class="modal hidden"
@@ -623,7 +725,7 @@
     </div>
 
     <h3>
-      Conteúdo recebido
+      <span data-i18n="contentReceived">Conteúdo recebido</span>
     </h3>
 
     <p id="modal-text"></p>
@@ -634,14 +736,14 @@
         id="btn-modal-reject"
         class="modal-reject"
       >
-        Recusar
+        <span data-i18n="reject">Recusar</span>
       </button>
 
       <button
         id="btn-modal-accept"
         class="modal-accept"
       >
-        Baixar
+        <span data-i18n="download">Baixar</span>
       </button>
 
     </div>
