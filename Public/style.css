@@ -1389,3 +1389,41 @@ svg {
     width: 100%;
   }
 }
+
+/* =========================
+   PULL-TO-REFRESH MOBILE
+========================= */
+
+@media (max-width: 600px) {
+
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  #app {
+    min-height: 100dvh;
+    height: auto;
+  }
+
+  #screen-connect {
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+    touch-action: pan-y;
+  }
+
+  #screen-app {
+    height: 100dvh;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+}
