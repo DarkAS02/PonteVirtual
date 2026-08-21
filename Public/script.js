@@ -70,6 +70,22 @@ let toastTimer =
   null;
 
 
+let reconnectTimer =
+  null;
+
+let presenceInterval =
+  null;
+
+let networkCheckInterval =
+  null;
+
+let lastNetworkId =
+  null;
+
+let socketGeneration =
+  0;
+
+
 // Arquivos recebidos
 // ficam em fila
 
@@ -543,7 +559,33 @@ const translations = {
     requestSent: 'Solicitação enviada',
     requestRejected: 'Solicitação recusada',
     deviceUnavailable: 'O dispositivo não está mais disponível',
-    updating: 'Atualizando...'
+    updating: 'Atualizando...',
+    connectedToast: t('connectedToast'),
+    sessionEnded: t('sessionEnded'),
+    serverConnectionError: 'Erro de conexão com o servidor',
+    serverConnecting: 'Servidor ainda conectando...',
+    invalidQr: 'QR Code inválido',
+    cameraOpenError: 'Não foi possível abrir a câmera',
+    connectionUnavailable: t('connectionUnavailable'),
+    textSent: 'Texto enviado ✓',
+    copy: 'Copiar',
+    copied: '✓ Copiado',
+    copiedClipboard: 'Copiado para a área de transferência',
+    copyError: 'Não foi possível copiar',
+    downloadStarted: '✓ Download iniciado',
+    fileRejected: 'Arquivo recusado',
+    fileReceived: 'Arquivo recebido pelo outro dispositivo ✓',
+    resendUnavailable: 'Esse arquivo não está mais disponível para reenvio',
+    removeHistory: 'Remover do histórico',
+    removedHistory: 'Removido do histórico',
+    resend: '↻ Reenviar',
+    pendingTransfer: '◷ Aguardando resposta...',
+    transferAccepted: '✓ Recebido pelo outro dispositivo',
+    transferRejected: '✕ Recusado',
+    stopRecording: 'Parar gravação',
+    recordingStarted: 'Gravação iniciada',
+    microphoneError: 'Não foi possível acessar o microfone',
+    nearbyReconnecting: 'Reconectando à rede...'
   },
 
   en: {
@@ -596,7 +638,33 @@ const translations = {
     requestSent: 'Request sent',
     requestRejected: 'Request rejected',
     deviceUnavailable: 'The device is no longer available',
-    updating: 'Refreshing...'
+    updating: 'Refreshing...',
+    connectedToast: 'Device connected ✓',
+    sessionEnded: 'Session ended',
+    serverConnectionError: 'Server connection error',
+    serverConnecting: 'Server is still connecting...',
+    invalidQr: 'Invalid QR Code',
+    cameraOpenError: 'Could not open the camera',
+    connectionUnavailable: 'Connection unavailable',
+    textSent: 'Text sent ✓',
+    copy: 'Copy',
+    copied: '✓ Copied',
+    copiedClipboard: 'Copied to clipboard',
+    copyError: 'Could not copy',
+    downloadStarted: '✓ Download started',
+    fileRejected: 'File rejected',
+    fileReceived: 'File received by the other device ✓',
+    resendUnavailable: 'This file is no longer available to resend',
+    removeHistory: 'Remove from history',
+    removedHistory: 'Removed from history',
+    resend: '↻ Resend',
+    pendingTransfer: '◷ Waiting for response...',
+    transferAccepted: '✓ Received by the other device',
+    transferRejected: '✕ Rejected',
+    stopRecording: 'Stop recording',
+    recordingStarted: 'Recording started',
+    microphoneError: 'Could not access the microphone',
+    nearbyReconnecting: 'Reconnecting to the network...'
   }
 };
 
@@ -617,6 +685,28 @@ function applyLanguage() {
   languageOptions.forEach((option) => {
     option.classList.toggle('active', option.dataset.language === currentLanguage);
   });
+
+
+  if (textInput) {
+    textInput.placeholder =
+      currentLanguage === 'pt'
+        ? 'Digite ou cole um texto...'
+        : 'Type or paste text...';
+  }
+
+
+  if (
+    recordText &&
+    !mediaRecorder
+  ) {
+    recordText.textContent =
+      t('recordAudio');
+  }
+
+
+  renderNearbyDevices(
+    []
+  );
 }
 
 function registerDevice() {
@@ -625,13 +715,272 @@ function registerDevice() {
   socket.send(JSON.stringify({
     type: 'register_device',
     ...deviceIdentity,
-    available: !targetRoom
+    available:
+      !targetRoom &&
+      screenApp
+        .classList
+        .contains(
+          'hidden'
+        )
   }));
 }
 
-function requestNearbyDevices() {
+
+function sendPresencePing() {
   if (!socketReady()) return;
-  socket.send(JSON.stringify({ type: 'get_nearby' }));
+
+  socket.send(
+    JSON.stringify({
+      type:
+        'presence_ping',
+
+      deviceId:
+        deviceIdentity.deviceId,
+
+      available:
+        !targetRoom &&
+        screenApp
+          .classList
+          .contains(
+            'hidden'
+          )
+    })
+  );
+}
+
+
+function startPresenceLoop() {
+  clearInterval(
+    presenceInterval
+  );
+
+  presenceInterval =
+    setInterval(
+      () => {
+        sendPresencePing();
+      },
+      4000
+    );
+}
+
+
+function stopPresenceLoop() {
+  clearInterval(
+    presenceInterval
+  );
+
+  presenceInterval =
+    null;
+}
+
+
+async function readCurrentNetworkId() {
+  try {
+    const response =
+      await fetch(
+        `/network-id?_=${Date.now()}`,
+        {
+          cache:
+            'no-store'
+        }
+      );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data =
+      await response.json();
+
+    return (
+      data.networkId ||
+      null
+    );
+  }
+  catch {
+    return null;
+  }
+}
+
+
+async function checkNetworkChange(
+  forceRefresh = false
+) {
+  const networkId =
+    await readCurrentNetworkId();
+
+  if (!networkId) {
+    return false;
+  }
+
+
+  if (
+    lastNetworkId &&
+    networkId !==
+      lastNetworkId
+  ) {
+    lastNetworkId =
+      networkId;
+
+    showToast(
+      t(
+        'nearbyReconnecting'
+      ),
+      false
+    );
+
+    if (
+      socket &&
+      (
+        socket.readyState ===
+          WebSocket.OPEN ||
+        socket.readyState ===
+          WebSocket.CONNECTING
+      )
+    ) {
+      try {
+        socket.close(
+          4002,
+          'Rede alterada'
+        );
+      }
+      catch {}
+    }
+
+    scheduleReconnect(
+      120
+    );
+
+    return true;
+  }
+
+
+  lastNetworkId =
+    networkId;
+
+
+  if (
+    forceRefresh &&
+    socketReady()
+  ) {
+    registerDevice();
+    sendPresencePing();
+
+    socket.send(
+      JSON.stringify({
+        type:
+          'get_nearby'
+      })
+    );
+  }
+
+
+  return false;
+}
+
+
+function startNetworkWatch() {
+  clearInterval(
+    networkCheckInterval
+  );
+
+  networkCheckInterval =
+    setInterval(
+      () => {
+        if (
+          screenApp
+            .classList
+            .contains(
+              'hidden'
+            )
+        ) {
+          checkNetworkChange(
+            false
+          );
+        }
+      },
+      5000
+    );
+}
+
+
+function stopNetworkWatch() {
+  clearInterval(
+    networkCheckInterval
+  );
+
+  networkCheckInterval =
+    null;
+}
+
+
+function requestNearbyDevices() {
+  if (!socketReady()) {
+    scheduleReconnect(
+      0
+    );
+
+    return;
+  }
+
+  registerDevice();
+  sendPresencePing();
+
+  socket.send(
+    JSON.stringify({
+      type:
+        'get_nearby'
+    })
+  );
+}
+
+
+async function refreshNearbyDevices() {
+  const label =
+    btnRefreshNearby
+      .querySelector(
+        '[data-i18n="refresh"]'
+      );
+
+  btnRefreshNearby.disabled =
+    true;
+
+  if (label) {
+    label.textContent =
+      t(
+        'updating'
+      );
+  }
+
+
+  const changed =
+    await checkNetworkChange(
+      true
+    );
+
+
+  if (
+    !changed &&
+    socketReady()
+  ) {
+    requestNearbyDevices();
+  }
+
+
+  setTimeout(
+    () => {
+      btnRefreshNearby.disabled =
+        false;
+
+      if (label) {
+        label.textContent =
+          t(
+            'refresh'
+          );
+      }
+    },
+    700
+  );
 }
 
 function deviceIcon(type) {
@@ -707,19 +1056,99 @@ function closeNearbyModal() {
 // WEBSOCKET
 // =========================
 
+function scheduleReconnect(
+  delay = 900
+) {
+
+  if (
+    !screenApp
+      .classList
+      .contains(
+        'hidden'
+      )
+  ) {
+    return;
+  }
+
+
+  clearTimeout(
+    reconnectTimer
+  );
+
+
+  reconnectTimer =
+    setTimeout(
+      () => {
+
+        if (
+          socket &&
+          (
+            socket.readyState ===
+              WebSocket.OPEN ||
+            socket.readyState ===
+              WebSocket.CONNECTING
+          )
+        ) {
+          return;
+        }
+
+
+        connectSocket();
+
+      },
+      delay
+    );
+
+}
+
+
 function connectSocket() {
 
-  socket =
+  clearTimeout(
+    reconnectTimer
+  );
+
+
+  const generation =
+    ++socketGeneration;
+
+
+  const ws =
     new WebSocket(
       WS_URL
     );
 
 
-  socket.onopen =
-    () => {
+  socket =
+    ws;
+
+
+  ws.onopen =
+    async () => {
+
+      if (
+        socket !== ws ||
+        generation !==
+          socketGeneration
+      ) {
+        return;
+      }
+
 
       registerDevice();
       enrichDeviceIdentity();
+
+      startPresenceLoop();
+      startNetworkWatch();
+
+      const currentNetwork =
+        await readCurrentNetworkId();
+
+      if (currentNetwork) {
+        lastNetworkId =
+          currentNetwork;
+      }
+
 
       // Entrou através
       // de um QR Code
@@ -731,7 +1160,7 @@ function connectSocket() {
         );
 
 
-        socket.send(
+        ws.send(
           JSON.stringify({
             type:
               'join_room',
@@ -773,7 +1202,7 @@ function connectSocket() {
     };
 
 
-  socket.onmessage =
+  ws.onmessage =
     (event) => {
 
       let data;
@@ -872,7 +1301,7 @@ function connectSocket() {
 
 
         showToast(
-          'Dispositivo conectado ✓'
+          t('connectedToast')
         );
 
 
@@ -969,7 +1398,7 @@ function connectSocket() {
       ) {
 
         showToast(
-          'Sessão encerrada'
+          t('sessionEnded')
         );
 
 
@@ -1008,20 +1437,47 @@ function connectSocket() {
     };
 
 
-  socket.onerror =
+  ws.onerror =
     () => {
 
-      showToast(
-        'Erro de conexão com o servidor'
-      );
+      if (
+        socket !== ws
+      ) {
+        return;
+      }
+
+
+      if (
+        !screenApp
+          .classList
+          .contains(
+            'hidden'
+          )
+      ) {
+
+        showToast(
+          t(
+            'serverConnectionError'
+          )
+        );
+
+      }
 
     };
 
 
-  socket.onclose =
+  ws.onclose =
     () => {
 
+      if (
+        socket !== ws
+      ) {
+        return;
+      }
+
+
       stopQrTimers();
+      stopPresenceLoop();
 
 
       if (
@@ -1037,7 +1493,14 @@ function connectSocket() {
           250
         );
 
+        return;
+
       }
+
+
+      scheduleReconnect(
+        700
+      );
 
     };
 
@@ -1310,7 +1773,7 @@ btnGenerateQR
       ) {
 
         showToast(
-          'Servidor ainda conectando...'
+          t('serverConnecting')
         );
 
         return;
@@ -1589,7 +2052,7 @@ btnOpenScanner
             ) {
 
               showToast(
-                'QR Code inválido'
+                t('invalidQr')
               );
 
               return;
@@ -1632,7 +2095,7 @@ btnOpenScanner
 
 
         showToast(
-          'Não foi possível abrir a câmera'
+          t('cameraOpenError')
         );
 
 
@@ -1969,7 +2432,7 @@ function sendText() {
   if (!socketReady()) {
 
     showToast(
-      'Conexão indisponível'
+      t('connectionUnavailable')
     );
 
     return;
@@ -2003,7 +2466,7 @@ function sendText() {
 
 
   showToast(
-    'Texto enviado ✓',
+    t('textSent'),
     false
   );
 
@@ -2060,7 +2523,7 @@ function addTextMessage(
 
 
   copy.textContent =
-    'Copiar';
+    t('copy');
 
 
   copy.addEventListener(
@@ -2078,7 +2541,7 @@ function addTextMessage(
 
 
         copy.textContent =
-          '✓ Copiado';
+          t('copied');
 
 
         copy.classList.add(
@@ -2087,7 +2550,7 @@ function addTextMessage(
 
 
         showToast(
-          'Copiado para a área de transferência'
+          t('copiedClipboard')
         );
 
 
@@ -2095,7 +2558,7 @@ function addTextMessage(
           () => {
 
             copy.textContent =
-              'Copiar';
+              t('copy');
 
 
             copy
@@ -2114,7 +2577,7 @@ function addTextMessage(
       catch {
 
         showToast(
-          'Não foi possível copiar'
+          t('copyError')
         );
 
       }
@@ -2281,7 +2744,7 @@ function sendFile(
   if (!socketReady()) {
 
     showToast(
-      'Conexão indisponível'
+      t('connectionUnavailable')
     );
 
     return;
@@ -2536,7 +2999,7 @@ btnModalAccept
 
 
       showToast(
-        '✓ Download iniciado'
+        t('downloadStarted')
       );
 
 
@@ -2593,7 +3056,7 @@ btnModalReject
 
 
       showToast(
-        'Arquivo recusado',
+        t('fileRejected'),
         false
       );
 
@@ -2662,7 +3125,7 @@ function updateTransferStatus(
   ) {
 
     showToast(
-      'Arquivo recebido pelo outro dispositivo ✓'
+      t('fileReceived')
     );
 
   }
@@ -2700,7 +3163,7 @@ function resendTransfer(
   if (!transfer) {
 
     showToast(
-      'Esse arquivo não está mais disponível para reenvio'
+      t('resendUnavailable')
     );
 
     return;
@@ -2711,7 +3174,7 @@ function resendTransfer(
   if (!socketReady()) {
 
     showToast(
-      'Conexão indisponível'
+      t('connectionUnavailable')
     );
 
     return;
@@ -2917,7 +3380,7 @@ function addFileCard(
 
 
   deleteButton.title =
-    'Remover do histórico';
+    t('removeHistory');
 
 
   deleteButton.innerHTML =
@@ -2948,7 +3411,7 @@ function addFileCard(
 
 
       showToast(
-        'Removido do histórico',
+        t('removedHistory'),
         false
       );
 
@@ -3067,7 +3530,7 @@ function addFileCard(
 
 
   retryButton.textContent =
-    '↻ Reenviar';
+    t('resend');
 
 
   retryButton.addEventListener(
@@ -3173,7 +3636,7 @@ function setCardStatus(
   ) {
 
     statusText.textContent =
-      '◷ Aguardando resposta...';
+      t('pendingTransfer');
 
   }
 
@@ -3184,7 +3647,7 @@ function setCardStatus(
   ) {
 
     statusText.textContent =
-      '✓ Recebido pelo outro dispositivo';
+      t('transferAccepted');
 
   }
 
@@ -3195,7 +3658,7 @@ function setCardStatus(
   ) {
 
     statusText.textContent =
-      '✕ Recusado';
+      t('transferRejected');
 
   }
 
@@ -3332,7 +3795,7 @@ btnRecord.addEventListener(
 
 
           recordText.textContent =
-            'Gravar áudio';
+            t('recordAudio');
 
 
           sendFile(
@@ -3357,11 +3820,11 @@ btnRecord.addEventListener(
 
 
       recordText.textContent =
-        'Parar gravação';
+        t('stopRecording');
 
 
       showToast(
-        'Gravação iniciada',
+        t('recordingStarted'),
         false
       );
 
@@ -3377,7 +3840,7 @@ btnRecord.addEventListener(
 
 
       showToast(
-        'Não foi possível acessar o microfone'
+        t('microphoneError')
       );
 
     }
@@ -3652,28 +4115,10 @@ languageOptions.forEach((option) => {
 
 btnNearbyDesktop.addEventListener('click', openNearbyModal);
 btnNearbyMobile.addEventListener('click', openNearbyModal);
-btnRefreshNearby.addEventListener('click', () => {
-  if (!socketReady()) return;
-
-  const label =
-    btnRefreshNearby.querySelector('[data-i18n="refresh"]');
-
-  btnRefreshNearby.disabled = true;
-
-  if (label) {
-    label.textContent = t('updating');
-  }
-
-  requestNearbyDevices();
-
-  setTimeout(() => {
-    btnRefreshNearby.disabled = false;
-
-    if (label) {
-      label.textContent = t('refresh');
-    }
-  }, 650);
-});
+btnRefreshNearby.addEventListener(
+  'click',
+  refreshNearbyDevices
+);
 btnCloseNearby.addEventListener('click', closeNearbyModal);
 
 btnAcceptConnection.addEventListener('click', () => {
@@ -3905,6 +4350,30 @@ function goHome() {
     window.location.pathname;
 
 }
+
+
+window.addEventListener(
+  'online',
+  () => {
+    checkNetworkChange(
+      true
+    );
+
+    scheduleReconnect(
+      0
+    );
+  }
+);
+
+
+window.addEventListener(
+  'offline',
+  () => {
+    renderNearbyDevices(
+      []
+    );
+  }
+);
 
 
 // =========================
