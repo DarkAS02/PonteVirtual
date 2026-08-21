@@ -2,6 +2,7 @@ const express = require('express');
 const { createServer } = require('http');
 const { WebSocketServer, WebSocket } = require('ws');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const server = createServer(app);
@@ -11,6 +12,47 @@ app.use(
   express.static(
     path.join(__dirname, 'Public')
   )
+);
+
+
+app.get(
+  '/network-id',
+  (req, res) => {
+
+    const ip =
+      getClientIp(
+        req
+      );
+
+
+    const networkId =
+      crypto
+        .createHash(
+          'sha256'
+        )
+        .update(
+          ip
+        )
+        .digest(
+          'hex'
+        )
+        .slice(
+          0,
+          16
+        );
+
+
+    res.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate'
+    );
+
+
+    res.json({
+      networkId
+    });
+
+  }
 );
 
 
@@ -29,35 +71,71 @@ function getClientIp(req) {
   return String(raw).trim().replace(/^::ffff:/, '');
 }
 
-function getNearbyDevices(forClient) {
-  const devicesById = new Map();
+function getNearbyDevices(
+  forClient
+) {
 
-  wss.clients.forEach((client) => {
-    if (
-      client !== forClient &&
-      client.readyState === WebSocket.OPEN &&
-      client.available &&
-      !client.activeRoom &&
-      client.deviceId &&
-      client.networkKey === forClient.networkKey
-    ) {
-      const previous =
-        devicesById.get(
-          client.deviceId
-        );
+  const devicesById =
+    new Map();
+
+
+  const now =
+    Date.now();
+
+
+  wss.clients.forEach(
+    (client) => {
+
+      const recentlySeen =
+        client.lastSeen &&
+        now -
+          client.lastSeen <
+          12000;
+
 
       if (
-        !previous ||
-        (client.registeredAt || 0) >
-          (previous.registeredAt || 0)
+        client !==
+          forClient &&
+
+        client.readyState ===
+          WebSocket.OPEN &&
+
+        client.available &&
+
+        recentlySeen &&
+
+        !client.activeRoom &&
+
+        client.deviceId &&
+
+        client.networkKey ===
+          forClient.networkKey
       ) {
-        devicesById.set(
-          client.deviceId,
-          client
-        );
+
+        const previous =
+          devicesById.get(
+            client.deviceId
+          );
+
+
+        if (
+          !previous ||
+          (client.registeredAt || 0) >
+            (previous.registeredAt || 0)
+        ) {
+
+          devicesById.set(
+            client.deviceId,
+            client
+          );
+
+        }
+
       }
+
     }
-  });
+  );
+
 
   return Array
     .from(
@@ -65,6 +143,7 @@ function getNearbyDevices(forClient) {
     )
     .map(
       (client) => ({
+
         deviceId:
           client.deviceId,
 
@@ -73,8 +152,10 @@ function getNearbyDevices(forClient) {
 
         deviceType:
           client.deviceType
+
       })
     );
+
 }
 
 function sendNearbyDevices(client) {
@@ -276,6 +357,7 @@ wss.on(
     ws.deviceType = null;
     ws.available = false;
     ws.registeredAt = 0;
+    ws.lastSeen = Date.now();
     ws.networkKey = getClientIp(req);
 
 
@@ -374,6 +456,9 @@ wss.on(
           ws.registeredAt =
             Date.now();
 
+          ws.lastSeen =
+            Date.now();
+
           ws.available =
             data.available !==
               false &&
@@ -386,8 +471,49 @@ wss.on(
           return;
         }
 
+        if (
+          data.type ===
+          'presence_ping'
+        ) {
+
+          if (
+            !ws.deviceId ||
+            data.deviceId !==
+              ws.deviceId
+          ) {
+
+            return;
+
+          }
+
+
+          ws.lastSeen =
+            Date.now();
+
+
+          ws.available =
+            data.available !==
+              false &&
+            !ws.activeRoom;
+
+
+          return;
+
+        }
+
+
         if (data.type === 'get_nearby') {
-          sendNearbyDevices(ws);
+          if (!ws.deviceId) {
+            return;
+          }
+
+          ws.lastSeen =
+            Date.now();
+
+          sendNearbyDevices(
+            ws
+          );
+
           return;
         }
 
@@ -758,6 +884,10 @@ wss.on(
       'close',
       () => {
 
+        ws.available =
+          false;
+
+
         const roomId =
           ws.activeRoom;
 
@@ -820,6 +950,67 @@ wss.on(
 
 
 // =========================
+// LIMPAR PRESENÇA EXPIRADA
+// =========================
+
+const presenceCleanupInterval =
+  setInterval(
+    () => {
+
+      const now =
+        Date.now();
+
+
+      const affectedNetworks =
+        new Set();
+
+
+      wss.clients.forEach(
+        (ws) => {
+
+          if (
+            ws.deviceId &&
+            ws.available &&
+            !ws.activeRoom &&
+            (
+              !ws.lastSeen ||
+              now -
+                ws.lastSeen >=
+                12000
+            )
+          ) {
+
+            ws.available =
+              false;
+
+
+            affectedNetworks.add(
+              ws.networkKey
+            );
+
+          }
+
+        }
+      );
+
+
+      affectedNetworks.forEach(
+        (networkKey) => {
+
+          broadcastNearby(
+            networkKey
+          );
+
+        }
+      );
+
+    },
+
+    4000
+  );
+
+
+// =========================
 // DETECTAR QUEDA DE CONEXÃO
 // =========================
 
@@ -860,6 +1051,11 @@ wss.on(
 
     clearInterval(
       heartbeatInterval
+    );
+
+
+    clearInterval(
+      presenceCleanupInterval
     );
 
   }
