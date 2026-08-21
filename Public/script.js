@@ -540,19 +540,24 @@ function connectSocket() {
       // =========================
 
       if (
-        data.type ===
-        'message'
-      ) {
+  data.type ===
+  'message'
+) {
 
-        addTextMessage(
-          data.content,
-          'other'
-        );
+  showTabNotification(
+    'text'
+  );
 
 
-        return;
+  addTextMessage(
+    data.content,
+    'other'
+  );
 
-      }
+
+  return;
+
+}
 
 
       // =========================
@@ -1452,6 +1457,50 @@ async function stopScanner() {
 // ABAS
 // =========================
 
+function showTabNotification(
+  tabName
+) {
+
+  const tab =
+    document.querySelector(
+      `.tab[data-tab="${tabName}"]`
+    );
+
+
+  if (
+    !tab ||
+    tab.classList.contains(
+      'active'
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  tab.classList.add(
+    'has-notification'
+  );
+
+}
+
+
+function clearTabNotification(
+  tab
+) {
+
+  if (!tab) {
+    return;
+  }
+
+
+  tab.classList.remove(
+    'has-notification'
+  );
+
+}
+
 tabs.forEach(
   (tab) => {
 
@@ -1492,6 +1541,11 @@ tabs.forEach(
           );
 
 
+clearTabNotification(
+  tab
+);
+        
+        
         document
           .getElementById(
             `tab-${tab.dataset.tab}`
