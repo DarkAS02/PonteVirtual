@@ -30,7 +30,7 @@ function getClientIp(req) {
 }
 
 function getNearbyDevices(forClient) {
-  const devices = [];
+  const devicesById = new Map();
 
   wss.clients.forEach((client) => {
     if (
@@ -41,15 +41,40 @@ function getNearbyDevices(forClient) {
       client.deviceId &&
       client.networkKey === forClient.networkKey
     ) {
-      devices.push({
-        deviceId: client.deviceId,
-        deviceName: client.deviceName,
-        deviceType: client.deviceType
-      });
+      const previous =
+        devicesById.get(
+          client.deviceId
+        );
+
+      if (
+        !previous ||
+        (client.registeredAt || 0) >
+          (previous.registeredAt || 0)
+      ) {
+        devicesById.set(
+          client.deviceId,
+          client
+        );
+      }
     }
   });
 
-  return devices;
+  return Array
+    .from(
+      devicesById.values()
+    )
+    .map(
+      (client) => ({
+        deviceId:
+          client.deviceId,
+
+        deviceName:
+          client.deviceName,
+
+        deviceType:
+          client.deviceType
+      })
+    );
 }
 
 function sendNearbyDevices(client) {
@@ -71,11 +96,30 @@ function broadcastNearby(networkKey) {
 }
 
 function findDevice(deviceId) {
-  for (const client of wss.clients) {
-    if (client.deviceId === deviceId) return client;
+  let newest = null;
+
+  for (
+    const client
+    of wss.clients
+  ) {
+    if (
+      client.deviceId ===
+        deviceId &&
+      client.readyState ===
+        WebSocket.OPEN
+    ) {
+      if (
+        !newest ||
+        (client.registeredAt || 0) >
+          (newest.registeredAt || 0)
+      ) {
+        newest =
+          client;
+      }
+    }
   }
 
-  return null;
+  return newest;
 }
 
 function createDirectRoom(first, second) {
@@ -231,6 +275,7 @@ wss.on(
     ws.deviceName = null;
     ws.deviceType = null;
     ws.available = false;
+    ws.registeredAt = 0;
     ws.networkKey = getClientIp(req);
 
 
@@ -266,12 +311,78 @@ wss.on(
         // =========================
 
         if (data.type === 'register_device') {
-          ws.deviceId = String(data.deviceId || '').slice(0, 80);
-          ws.deviceName = String(data.deviceName || 'Dispositivo').slice(0, 80);
-          ws.deviceType = String(data.deviceType || 'device').slice(0, 30);
-          ws.available = data.available !== false && !ws.activeRoom;
+          const newDeviceId =
+            String(
+              data.deviceId ||
+              ''
+            )
+              .slice(
+                0,
+                80
+              );
 
-          broadcastNearby(ws.networkKey);
+          if (!newDeviceId) {
+            return;
+          }
+
+          // Se o mesmo navegador reconectar/recarregar,
+          // substitui a conexão antiga em vez de listar
+          // o mesmo aparelho várias vezes.
+          wss.clients.forEach(
+            (client) => {
+              if (
+                client !== ws &&
+                client.deviceId === newDeviceId &&
+                client.readyState === WebSocket.OPEN
+              ) {
+                client.available =
+                  false;
+
+                try {
+                  client.close(
+                    4001,
+                    'Conexão substituída'
+                  );
+                } catch {}
+              }
+            }
+          );
+
+          ws.deviceId =
+            newDeviceId;
+
+          ws.deviceName =
+            String(
+              data.deviceName ||
+              'Dispositivo'
+            )
+              .slice(
+                0,
+                80
+              );
+
+          ws.deviceType =
+            String(
+              data.deviceType ||
+              'device'
+            )
+              .slice(
+                0,
+                30
+              );
+
+          ws.registeredAt =
+            Date.now();
+
+          ws.available =
+            data.available !==
+              false &&
+            !ws.activeRoom;
+
+          broadcastNearby(
+            ws.networkKey
+          );
+
           return;
         }
 
