@@ -325,6 +325,25 @@ const toast =
     'toast'
   );
 
+const btnSettings = document.getElementById('btn-settings');
+const btnNearbyDesktop = document.getElementById('btn-nearby-desktop');
+const btnNearbyMobile = document.getElementById('btn-nearby-mobile');
+const modalSettings = document.getElementById('modal-settings');
+const btnCloseSettings = document.getElementById('btn-close-settings');
+const languageOptions = document.querySelectorAll('.language-option');
+const modalNearby = document.getElementById('modal-nearby');
+const nearbyList = document.getElementById('nearby-list');
+const btnCloseNearby = document.getElementById('btn-close-nearby');
+const btnRefreshNearby = document.getElementById('btn-refresh-nearby');
+const modalConnectionRequest = document.getElementById('modal-connection-request');
+const connectionRequestText = document.getElementById('connection-request-text');
+const btnAcceptConnection = document.getElementById('btn-accept-connection');
+const btnRejectConnection = document.getElementById('btn-reject-connection');
+
+let incomingConnectionRequest = null;
+let currentLanguage = localStorage.getItem('ponte-language') ||
+  (navigator.language.toLowerCase().startsWith('pt') ? 'pt' : 'en');
+
 
 // =========================
 // IDS
@@ -390,6 +409,244 @@ function createTransferId() {
 }
 
 
+const deviceIdentity = (() => {
+  const id = randomId('dev');
+  const ua = navigator.userAgent;
+  let deviceType = 'device';
+  let baseName = 'Dispositivo';
+
+  if (/Android/i.test(ua)) {
+    deviceType = 'phone';
+    baseName = 'Android';
+  } else if (/iPhone|iPad|iPod/i.test(ua)) {
+    deviceType = 'phone';
+    baseName = 'iPhone/iPad';
+  } else if (/Windows/i.test(ua)) {
+    deviceType = 'computer';
+    baseName = 'Windows PC';
+  } else if (/Macintosh|Mac OS X/i.test(ua)) {
+    deviceType = 'computer';
+    baseName = 'Mac';
+  } else if (/Linux/i.test(ua)) {
+    deviceType = 'computer';
+    baseName = 'Linux PC';
+  }
+
+  return {
+    deviceId: id,
+    deviceType,
+    deviceName: `${baseName} • ${id.slice(-4).toUpperCase()}`
+  };
+})();
+
+const translations = {
+  pt: {
+    brandSubtitle: 'Transferência temporária entre dispositivos',
+    connectPhone: 'Conectar celular',
+    scanWithPhone: 'Escaneie o QR Code com seu celular',
+    temporarySession: '🔒 Sessão temporária e de uso único',
+    connectDevice: 'Conectar dispositivo',
+    chooseStart: 'Escolha como deseja iniciar',
+    scanQr: 'Escanear QR Code',
+    connectAnother: 'Conectar a outro dispositivo',
+    generateQr: 'Gerar QR Code',
+    otherPhoneScans: 'Outro celular escaneia você',
+    nearby: 'Dispositivos próximos',
+    nearbySubtitle: 'Conectar sem usar QR Code',
+    positionQr: 'Posicione o código dentro da área',
+    back: '← Voltar',
+    yourQr: 'Seu QR Code',
+    askOtherScan: 'Peça para o outro celular escanear',
+    connecting: 'Conectando...',
+    validating: 'Validando a sessão',
+    connected: 'Conectado',
+    disconnect: 'Desconectar',
+    media: 'Mídia',
+    text: 'Texto',
+    audio: 'Áudio',
+    filesPhotos: 'Arquivos e fotos',
+    sendFilesConnected: 'Envie arquivos para o dispositivo conectado',
+    dropFiles: 'Solte arquivos aqui',
+    orSelect: 'ou selecione manualmente',
+    selectFiles: 'Selecionar arquivos',
+    selectPhotos: 'Selecionar fotos',
+    sendTexts: 'Envie textos, links ou códigos',
+    recordOrImport: 'Grave agora ou importe um áudio',
+    importAudios: 'Importar áudios',
+    recordAudio: 'Gravar áudio',
+    settings: 'Configurações',
+    languageDescription: 'Escolha o idioma da interface',
+    nearbyDescription: 'Dispositivos disponíveis nesta rede',
+    refresh: '↻ Atualizar',
+    connectionRequest: 'Solicitação de conexão',
+    reject: 'Recusar',
+    accept: 'Aceitar',
+    contentReceived: 'Conteúdo recebido',
+    download: 'Baixar',
+    available: 'Disponível',
+    connect: 'Conectar',
+    noDevices: 'Nenhum dispositivo disponível nesta rede.',
+    wantsConnect: 'quer se conectar a este dispositivo.',
+    requestSent: 'Solicitação enviada',
+    requestRejected: 'Solicitação recusada',
+    deviceUnavailable: 'O dispositivo não está mais disponível'
+  },
+
+  en: {
+    brandSubtitle: 'Temporary transfer between devices',
+    connectPhone: 'Connect phone',
+    scanWithPhone: 'Scan the QR Code with your phone',
+    temporarySession: '🔒 Temporary, single-use session',
+    connectDevice: 'Connect device',
+    chooseStart: 'Choose how you want to start',
+    scanQr: 'Scan QR Code',
+    connectAnother: 'Connect to another device',
+    generateQr: 'Generate QR Code',
+    otherPhoneScans: 'Another phone scans your code',
+    nearby: 'Nearby devices',
+    nearbySubtitle: 'Connect without using a QR Code',
+    positionQr: 'Position the code inside the area',
+    back: '← Back',
+    yourQr: 'Your QR Code',
+    askOtherScan: 'Ask the other phone to scan it',
+    connecting: 'Connecting...',
+    validating: 'Validating session',
+    connected: 'Connected',
+    disconnect: 'Disconnect',
+    media: 'Media',
+    text: 'Text',
+    audio: 'Audio',
+    filesPhotos: 'Files and photos',
+    sendFilesConnected: 'Send files to the connected device',
+    dropFiles: 'Drop files here',
+    orSelect: 'or select them manually',
+    selectFiles: 'Select files',
+    selectPhotos: 'Select photos',
+    sendTexts: 'Send text, links or code',
+    recordOrImport: 'Record now or import audio',
+    importAudios: 'Import audio',
+    recordAudio: 'Record audio',
+    settings: 'Settings',
+    languageDescription: 'Choose the interface language',
+    nearbyDescription: 'Available devices on this network',
+    refresh: '↻ Refresh',
+    connectionRequest: 'Connection request',
+    reject: 'Reject',
+    accept: 'Accept',
+    contentReceived: 'Content received',
+    download: 'Download',
+    available: 'Available',
+    connect: 'Connect',
+    noDevices: 'No devices are available on this network.',
+    wantsConnect: 'wants to connect to this device.',
+    requestSent: 'Request sent',
+    requestRejected: 'Request rejected',
+    deviceUnavailable: 'The device is no longer available'
+  }
+};
+
+function t(key) {
+  return translations[currentLanguage]?.[key] || translations.pt[key] || key;
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage === 'pt' ? 'pt-BR' : 'en';
+
+  document.querySelectorAll('[data-i18n]').forEach((element) => {
+    const key = element.dataset.i18n;
+    if (translations[currentLanguage]?.[key]) {
+      element.textContent = translations[currentLanguage][key];
+    }
+  });
+
+  languageOptions.forEach((option) => {
+    option.classList.toggle('active', option.dataset.language === currentLanguage);
+  });
+}
+
+function registerDevice() {
+  if (!socketReady()) return;
+
+  socket.send(JSON.stringify({
+    type: 'register_device',
+    ...deviceIdentity,
+    available: !targetRoom
+  }));
+}
+
+function requestNearbyDevices() {
+  if (!socketReady()) return;
+  socket.send(JSON.stringify({ type: 'get_nearby' }));
+}
+
+function deviceIcon(type) {
+  if (type === 'phone') {
+    return '<svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 5h4M11 19h2"/></svg>';
+  }
+
+  return '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>';
+}
+
+function renderNearbyDevices(devices = []) {
+  nearbyList.innerHTML = '';
+
+  if (!devices.length) {
+    const empty = document.createElement('div');
+    empty.className = 'nearby-empty';
+    empty.textContent = t('noDevices');
+    nearbyList.appendChild(empty);
+    return;
+  }
+
+  devices.forEach((device) => {
+    const row = document.createElement('div');
+    row.className = 'nearby-device';
+
+    const icon = document.createElement('div');
+    icon.className = 'nearby-device-icon';
+    icon.innerHTML = deviceIcon(device.deviceType);
+
+    const info = document.createElement('div');
+    info.className = 'nearby-device-info';
+
+    const name = document.createElement('strong');
+    name.textContent = device.deviceName;
+
+    const status = document.createElement('small');
+    status.textContent = `● ${t('available')}`;
+
+    info.append(name, status);
+
+    const button = document.createElement('button');
+    button.className = 'nearby-connect-button';
+    button.type = 'button';
+    button.textContent = t('connect');
+    button.addEventListener('click', () => {
+      if (!socketReady()) return;
+
+      socket.send(JSON.stringify({
+        type: 'connection_request',
+        targetId: device.deviceId
+      }));
+
+      showToast(t('requestSent'), false);
+    });
+
+    row.append(icon, info, button);
+    nearbyList.appendChild(row);
+  });
+}
+
+function openNearbyModal() {
+  modalNearby.classList.remove('hidden');
+  renderNearbyDevices([]);
+  requestNearbyDevices();
+}
+
+function closeNearbyModal() {
+  modalNearby.classList.add('hidden');
+}
+
 // =========================
 // WEBSOCKET
 // =========================
@@ -404,6 +661,8 @@ function connectSocket() {
 
   socket.onopen =
     () => {
+
+      registerDevice();
 
       // Entrou através
       // de um QR Code
@@ -477,6 +736,31 @@ function connectSocket() {
       }
 
 
+      if (data.type === 'nearby_devices') {
+        renderNearbyDevices(data.devices || []);
+        return;
+      }
+
+      if (data.type === 'connection_request') {
+        incomingConnectionRequest = data;
+        connectionRequestText.textContent =
+          `${data.requesterName} ${t('wantsConnect')}`;
+        modalConnectionRequest.classList.remove('hidden');
+        return;
+      }
+
+      if (data.type === 'connection_rejected') {
+        showToast(t('requestRejected'), false);
+        requestNearbyDevices();
+        return;
+      }
+
+      if (data.type === 'connection_unavailable') {
+        showToast(t('deviceUnavailable'), false);
+        requestNearbyDevices();
+        return;
+      }
+
       // =========================
       // SALA CONFIRMADA
       // =========================
@@ -522,6 +806,11 @@ function connectSocket() {
 
         stopScanner();
 
+        modalNearby.classList.add('hidden');
+        modalSettings.classList.add('hidden');
+        modalConnectionRequest.classList.add('hidden');
+        incomingConnectionRequest = null;
+
         activateApp();
 
 
@@ -540,24 +829,24 @@ function connectSocket() {
       // =========================
 
       if (
-  data.type ===
-  'message'
-) {
+        data.type ===
+        'message'
+      ) {
 
-  showTabNotification(
-    'text'
-  );
-
-
-  addTextMessage(
-    data.content,
-    'other'
-  );
+        showTabNotification(
+          'text'
+        );
 
 
-  return;
+        addTextMessage(
+          data.content,
+          'other'
+        );
 
-}
+
+        return;
+
+      }
 
 
       // =========================
@@ -568,6 +857,18 @@ function connectSocket() {
         data.type ===
         'file_offer'
       ) {
+
+        const targetTab =
+          data.category ===
+            'audio'
+            ? 'audio'
+            : 'media';
+
+
+        showTabNotification(
+          targetTab
+        );
+
 
         queueIncomingTransfer(
           data
@@ -1501,6 +1802,7 @@ function clearTabNotification(
 
 }
 
+
 tabs.forEach(
   (tab) => {
 
@@ -1541,11 +1843,11 @@ tabs.forEach(
           );
 
 
-clearTabNotification(
-  tab
-);
-        
-        
+        clearTabNotification(
+          tab
+        );
+
+
         document
           .getElementById(
             `tab-${tab.dataset.tab}`
@@ -3270,6 +3572,58 @@ function trashIcon() {
 
 
 // =========================
+// CONFIGURAÇÕES / PRÓXIMOS
+// =========================
+
+btnSettings.addEventListener('click', () => {
+  applyLanguage();
+  modalSettings.classList.remove('hidden');
+});
+
+btnCloseSettings.addEventListener('click', () => {
+  modalSettings.classList.add('hidden');
+});
+
+languageOptions.forEach((option) => {
+  option.addEventListener('click', () => {
+    currentLanguage = option.dataset.language;
+    localStorage.setItem('ponte-language', currentLanguage);
+    applyLanguage();
+    renderNearbyDevices([]);
+  });
+});
+
+btnNearbyDesktop.addEventListener('click', openNearbyModal);
+btnNearbyMobile.addEventListener('click', openNearbyModal);
+btnRefreshNearby.addEventListener('click', requestNearbyDevices);
+btnCloseNearby.addEventListener('click', closeNearbyModal);
+
+btnAcceptConnection.addEventListener('click', () => {
+  if (!incomingConnectionRequest || !socketReady()) return;
+
+  socket.send(JSON.stringify({
+    type: 'connection_response',
+    requesterId: incomingConnectionRequest.requesterId,
+    accepted: true
+  }));
+
+  modalConnectionRequest.classList.add('hidden');
+});
+
+btnRejectConnection.addEventListener('click', () => {
+  if (!incomingConnectionRequest || !socketReady()) return;
+
+  socket.send(JSON.stringify({
+    type: 'connection_response',
+    requesterId: incomingConnectionRequest.requesterId,
+    accepted: false
+  }));
+
+  incomingConnectionRequest = null;
+  modalConnectionRequest.classList.add('hidden');
+});
+
+// =========================
 // FEEDBACK
 // =========================
 
@@ -3482,6 +3836,8 @@ function goHome() {
 window.addEventListener(
   'DOMContentLoaded',
   () => {
+
+    applyLanguage();
 
     if (
       targetRoom
